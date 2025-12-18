@@ -2,6 +2,7 @@ use bevy::image::TextureFormatPixelInfo;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureViewDescriptor, TextureViewDimension};
 use bevy::{core_pipeline::Skybox, input::mouse::MouseMotion, pbr::ScreenSpaceAmbientOcclusion, prelude::*};
 use crate::app_state::{AppState, LoadingProgress};
+use crate::config::BlocksConfigRes;
 
 use super::components::FlyCam;
 use super::skybox::Cubemap;
@@ -19,8 +20,11 @@ impl Plugin for CameraPlugin {
 fn load_skybox(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    config: If<Res<BlocksConfigRes>>,
 ) {
-    let skybox_handle = asset_server.load("skybox/cross.png");
+    let config: &BlocksConfigRes = &config;
+
+    let skybox_handle = asset_server.load(format!("skybox/{}", &config.0.skybox.texture));
 
     commands.insert_resource(Cubemap {
         is_loaded: false,

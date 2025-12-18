@@ -1,4 +1,8 @@
 (
+    skybox: (
+        texture: "cross.png",
+    ),
+
     atlas: (
         size: (2048, 1024),
         tile_size: (16, 16),

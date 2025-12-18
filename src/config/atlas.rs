@@ -4,7 +4,13 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, Deserialize)]
 pub struct BlocksConfig {
     pub atlas: AtlasInfo,
+    pub skybox: SkyboxInfo,
     pub blocks: HashMap<String, BlockDef>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct SkyboxInfo {
+    pub texture: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
