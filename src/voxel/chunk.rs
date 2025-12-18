@@ -5,7 +5,9 @@ pub const CHUNK_SIZE: IVec3 = IVec3::new(16, 16, 16);
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Block {
     Air,
-    Solid,
+    Grass,
+    Dirt,
+    Stone
 }
 
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -23,21 +25,6 @@ pub struct ChunkDirty;
 pub struct ChunkMesh; // Marker: diese Entity ist das Mesh des Chunks (optional)
 
 impl ChunkData {
-    pub fn new() -> Self {
-        let mut blocks = vec![Block::Air; (CHUNK_SIZE.x * CHUNK_SIZE.y * CHUNK_SIZE.z) as usize];
-
-        for z in 0..CHUNK_SIZE.z {
-            for x in 0..CHUNK_SIZE.x {
-                blocks[Self::idx(x, 0, z)] = Block::Solid;
-            }
-        }
-        for y in 1..6 {
-            blocks[Self::idx(8, y, 8)] = Block::Solid;
-        }
-
-        Self { blocks }
-    }
-
     #[inline]
     fn idx(x: i32, y: i32, z: i32) -> usize {
         // wo liegt x, y, z im Vektor

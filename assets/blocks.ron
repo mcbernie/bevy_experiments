@@ -1,0 +1,23 @@
+(
+    atlas: (
+        size: (2048, 1024),
+        tile_size: (16, 16),
+        texture: "mc-atlas.png",
+    ),
+
+    blocks: {
+        "grass": (
+            top:    Some((21, 5)),
+            bottom: Some((17, 10)),
+            side:   Some((20, 6)),
+        ),
+
+        "dirt": (
+            all: Some((17, 10)),
+        ),
+
+        "stone": (
+            all: Some((26, 6)),
+        ),
+    }
+)

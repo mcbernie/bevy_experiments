@@ -1,12 +1,14 @@
 use bevy::{input::mouse::MouseMotion, prelude::*};
+use crate::app_state::AppState;
+
 use super::components::FlyCam;
 
 pub struct CameraPlugin;
 
 impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup_camera)
-            .add_systems(Update, (flycam_look, flycam_move));
+        app.add_systems(OnEnter(AppState::InGame), setup_camera)
+            .add_systems(Update, (flycam_look, flycam_move).run_if(in_state(AppState::InGame)));
     }
 }
 

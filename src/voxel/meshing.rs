@@ -2,6 +2,8 @@ use bevy::mesh::Indices;
 use bevy::{asset::RenderAssetUsages, mesh::PrimitiveTopology};
 use bevy::prelude::*;
 
+use crate::config::BlocksConfigRes;
+
 use super::chunk::{Block, CHUNK_SIZE, ChunkPos};
 use super::plugin::VoxelWorld;
 
@@ -19,7 +21,11 @@ enum FaceDir {
     NegZ, // unten
 }
 
+#[derive(Clone, Copy)]
+enum BlockFace { Top, Bottom, Side }
+
 pub fn build_chunk_mesh_with_neighbors(
+    cfg: &BlocksConfigRes,
     world: &VoxelWorld,
     all_chunks: &Query<&ChunkData>,
     chunk_pos: ChunkPos,
@@ -33,40 +39,40 @@ pub fn build_chunk_mesh_with_neighbors(
     for z in 0..CHUNK_SIZE.z {
         for y in 0..CHUNK_SIZE.y {
             for x in 0..CHUNK_SIZE.x {
-                if data.get_local(x, y, z) != Block::Solid {
-                    continue;
-                }
+                let raw = data.get_local(x, y, z);
+                if raw == Block::Air { continue; }
 
                 let is_surface = get_block_world(world, all_chunks, chunk_pos, x, y + 1, z) == Block::Air;
+                let block = effective_block_kind(raw, is_surface);
 
                 // X+ (rechts ist luft, also sichtbare seite)
                 if get_block_world(&world, &all_chunks, chunk_pos, x+1, y, z) == Block::Air {
-                    push_face(FaceDir::PosX, x, y, z, &mut positions, &mut normals, &mut uvs, &mut indices, is_surface);
+                    push_face(&cfg, block, FaceDir::PosX, x, y, z, &mut positions, &mut normals, &mut uvs, &mut indices, is_surface);
                 }
 
                 // X- (links ist luft, also sichtbare seite)
                 if get_block_world(&world, &all_chunks, chunk_pos, x - 1, y, z) == Block::Air {
-                    push_face(FaceDir::NegX, x, y, z, &mut positions, &mut normals, &mut uvs, &mut indices, is_surface);
+                    push_face(&cfg, block, FaceDir::NegX, x, y, z, &mut positions, &mut normals, &mut uvs, &mut indices, is_surface);
                 }
 
                 // Y+ (oben ist luft, also sichtbare seite)
                 if get_block_world(&world, &all_chunks, chunk_pos, x, y + 1, z) == Block::Air {
-                    push_face(FaceDir::PosY, x, y, z, &mut positions, &mut normals, &mut uvs, &mut indices, is_surface);
+                    push_face(&cfg, block, FaceDir::PosY, x, y, z, &mut positions, &mut normals, &mut uvs, &mut indices, is_surface);
                 }
 
                 // Y- (vorne ist luft, also sichtbare seite)
                 if get_block_world(&world, &all_chunks, chunk_pos, x, y - 1, z) == Block::Air {
-                    push_face(FaceDir::NegY, x, y, z, &mut positions, &mut normals, &mut uvs, &mut indices, is_surface);
+                    push_face(&cfg, block, FaceDir::NegY, x, y, z, &mut positions, &mut normals, &mut uvs, &mut indices, is_surface);
                 }
 
                 // Z+ (hinten ist luft, also sichtbare seite)
                 if get_block_world(&world, &all_chunks, chunk_pos, x, y, z + 1) == Block::Air {
-                    push_face(FaceDir::PosZ, x, y, z, &mut positions, &mut normals, &mut uvs, &mut indices, is_surface);
+                    push_face(&cfg, block, FaceDir::PosZ, x, y, z, &mut positions, &mut normals, &mut uvs, &mut indices, is_surface);
                 }
 
                 // Z- (vorne ist luft, also sichtbare seite)
-                if get_block_world(world, &all_chunks, chunk_pos, x, y, z - 1) == Block::Air {
-                    push_face(FaceDir::NegZ, x, y, z, &mut positions, &mut normals, &mut uvs, &mut indices, is_surface);
+                if get_block_world(&world, &all_chunks, chunk_pos, x, y, z - 1) == Block::Air {
+                    push_face(&cfg, block, FaceDir::NegZ, x, y, z, &mut positions, &mut normals, &mut uvs, &mut indices, is_surface);
                 }
 
             }
@@ -84,6 +90,8 @@ pub fn build_chunk_mesh_with_neighbors(
 }
 
 fn push_face(
+    cfg: &BlocksConfigRes,
+    block: Block, 
     dir: FaceDir,
     x: i32,
     y: i32,
@@ -150,38 +158,19 @@ fn push_face(
         ),
     };
 
-    let top_tile = if is_surface {
-        TILE_GRASS_TOP
-    } else {
-        TILE_DIRT
+    let face = face_kind(dir);
+    let tile = tile_for(cfg, block, face);
+
+    let rot = match dir {
+        FaceDir::PosX | FaceDir::NegX | FaceDir::PosZ | FaceDir::NegZ => UvRot::R180,
+        _ => UvRot::R0,
     };
 
-    let side_tile = if is_surface {
-        TILE_GRASS_SIDE
-    } else {
-        TILE_DIRT
-    };
-
-    let rect = match dir {
-        FaceDir::PosY => (tile_uv(top_tile), UvRot::R0), // Grass Top
-        FaceDir::NegY => (tile_uv(TILE_DIRT), UvRot::R0), // Dirt Bottom
-        FaceDir::PosZ => (tile_uv(side_tile), UvRot::R180),
-        FaceDir::NegZ => (tile_uv(side_tile), UvRot::R180),
-        FaceDir::PosX => (tile_uv(side_tile), UvRot::R180),
-        FaceDir::NegX => (tile_uv(side_tile), UvRot::R180),
-    };
+    let rect = (tile_uv(tile), rot);
+    push_uvs(rect.0, rect.1, uvs);
 
     positions.extend_from_slice(&[p0, p1, p2, p3]);
     normals.extend_from_slice(&[n, n, n, n]);
-
-    //uvs.extend_from_slice(&[
-    //    [rect.u0, rect.v0],
-    //    [rect.u1, rect.v0],
-    //    [rect.u1, rect.v1],
-    //    [rect.u0, rect.v1],
-    //]);
-
-    push_uvs(rect.0, rect.1, uvs);
 
     // Triangles (CCW)
     indices.extend_from_slice(&[
@@ -225,4 +214,43 @@ fn get_block_world(
     };
 
     data.get_local(local.x, local.y, local.z) // deine lokale get()-Methode, ohne "out of bounds = Air"
+}
+
+fn effective_block_kind(
+    block: Block,
+    above_is_air: bool,
+) -> Block {
+    match block {
+        Block::Grass if !above_is_air => Block::Dirt,
+        Block::Dirt if above_is_air => Block::Grass,
+        other => other,
+    }
+}
+
+fn face_kind(dir: FaceDir) -> BlockFace {
+    match dir {
+        FaceDir::PosY => BlockFace::Top,
+        FaceDir::NegY => BlockFace::Bottom,
+        _ => BlockFace::Side,
+    }
+}
+
+fn tile_for(cfg: &BlocksConfigRes, block: Block, face: BlockFace) -> (u32, u32) {
+    let key = match block {
+        Block::Grass => "grass",
+        Block::Dirt => "dirt",
+        Block::Stone => "stone",
+        Block::Air => "air",
+    };
+
+    let def = cfg.0.blocks.get(key).expect("block missing in config");
+
+    // Fallback: all -> specific
+    if let Some(all) = def.all { return all; }
+
+    match face {
+        BlockFace::Top => def.top.expect("missing top"),
+        BlockFace::Bottom => def.bottom.expect("missing bottom"),
+        BlockFace::Side => def.side.expect("missing side"),
+    }
 }

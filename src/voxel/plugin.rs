@@ -1,5 +1,9 @@
+use bevy::gizmos::config;
 use bevy::image::ImageSampler;
+use bevy::platform::cfg;
 use bevy::prelude::*;
+
+use crate::app_state::AppState;
 
 use super::meshing::build_chunk_mesh_with_neighbors;
 use super::chunk::{Block, CHUNK_SIZE, ChunkData, ChunkDirty, ChunkPos, chunk_origin_world};
@@ -23,10 +27,10 @@ pub struct VoxelPlugin;
 impl Plugin for VoxelPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<VoxelWorld>()
-        .add_systems(Startup, (setup_voxel_materials, spawn_chunks))
+        .add_systems(OnEnter(AppState::InGame), (setup_voxel_materials, spawn_chunks))
             .add_systems(
                 Update,
-                remesh_dirty_chunks,
+                remesh_dirty_chunks.run_if(in_state(AppState::InGame)),
             );
     }
 }
@@ -62,8 +66,11 @@ fn setup_voxel_materials(
     asset_server: Res<AssetServer>,
     mut images: ResMut<Assets<Image>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    cfg: Res<crate::config::BlocksConfigRes>,
 ) {
-    let tex: Handle<Image> = asset_server.load("textures/mc-atlas.png");
+
+    let texture_path = &cfg.0.atlas.texture;
+    let tex: Handle<Image> = asset_server.load(format!("textures/{}", texture_path));
 
     // Nearest: wichtig für Pixelart
     if let Some(img) = images.get_mut(&tex) {
@@ -89,9 +96,10 @@ fn remesh_dirty_chunks(
     dirty: Query<(Entity, &ChunkPos, &ChunkData, Option<&Children>), With<ChunkDirty>>,
     //chunks: Query<(Entity, &ChunkPos, &ChunkData, Option<&Children>), With<ChunkDirty>>,
     mesh_children: Query<Entity, With<ChunkMeshChild>>,
+    cfg: Res<crate::config::BlocksConfigRes>,
 ) {
     for (chunk_e, &chunk_pos, data, children_opt) in &dirty {
-        let mesh = build_chunk_mesh_with_neighbors(&world, &all_chunks, chunk_pos, data);
+        let mesh = build_chunk_mesh_with_neighbors(&cfg, &world, &all_chunks, chunk_pos, data);
         let mesh_handle = meshes.add(mesh);
 
         // vorhandenes Mesh-Kind suchen
@@ -142,7 +150,7 @@ pub fn make_test_blocks() -> Vec<Block> {
     for z in 0..CHUNK_SIZE.z {
         for x in 0..CHUNK_SIZE.x {
             let idx = block_index(x, 0, z);
-            blocks[idx] = Block::Solid;
+            blocks[idx] = Block::Grass;
         }
     }
 
@@ -151,7 +159,7 @@ pub fn make_test_blocks() -> Vec<Block> {
     let cz = CHUNK_SIZE.z / 2;
     for y in 1..5 {
         let idx = block_index(cx, y, cz);
-        blocks[idx] = Block::Solid;
+        blocks[idx] = Block::Grass;
     }
 
     blocks
