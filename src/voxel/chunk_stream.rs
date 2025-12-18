@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use crate::voxel::{chunk::{Block, CHUNK_SIZE, ChunkData, chunk_origin_world}, plugin::VoxelWorld};
+use crate::voxel::{chunk::{Block, CHUNK_SIZE, ChunkData, chunk_origin_world}, chunk_store::ChunkSaveStore, plugin::VoxelWorld};
 
 use super::chunk::{ChunkDirty, world_to_chunk_pos, ChunkPos};
 
@@ -124,13 +124,17 @@ pub fn handle_chunk_load_requests_system(
     mut commands: Commands,
     mut ev: MessageReader<RequestChunkLoad>,
     mut world: ResMut<VoxelWorld>,
+    store: ResMut<ChunkSaveStore>,
 ) {
     for RequestChunkLoad(pos) in ev.read().copied() {
         if world.chunks.contains_key(&pos) {
             continue;
         }
 
-        let data = generate_chunk_data(pos);
+        let data = store
+            .load_chunk(pos)
+            .unwrap_or_else(|| generate_chunk_data(pos));
+
         let origin = chunk_origin_world(pos);
 
         let ent = commands.spawn((

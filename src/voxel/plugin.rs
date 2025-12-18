@@ -3,6 +3,8 @@ use bevy::prelude::*;
 
 use crate::app_state::{AppState, LoadingProgress};
 use crate::config::BlocksConfigRes;
+use crate::voxel::chunk;
+use crate::voxel::chunk_store::{ChunkSaveStore, RequestChunkUnload};
 use crate::voxel::chunk_stream::{ChunkLoadQueue, ChunkStreamConfig, RequestChunkLoad, StreamTimer, chunk_stream_tick_system, handle_chunk_load_requests_system};
 
 use super::meshing::build_chunk_mesh_with_neighbors;
@@ -27,6 +29,7 @@ pub struct VoxelPlugin;
 impl Plugin for VoxelPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<VoxelWorld>()
+        .init_resource::<ChunkSaveStore>()
         .insert_resource(ChunkStreamConfig {
             view_radius: 4,
             unload_radius: 6,
@@ -38,11 +41,12 @@ impl Plugin for VoxelPlugin {
         .insert_resource(ChunkLoadQueue::default())
         .insert_resource(StreamTimer(Timer::from_seconds(0.2, TimerMode::Repeating)))
         .add_message::<RequestChunkLoad>()
+        .add_message::<RequestChunkUnload>()
         .add_systems(Update, (setup_voxel_materials, poll_voxel_loaded).run_if(in_state(AppState::Loading)))
         .add_systems(OnEnter(AppState::InGame), spawn_chunks)
         .add_systems(
             Update,
-            (chunk_stream_tick_system,handle_chunk_load_requests_system,remesh_dirty_chunks).run_if(in_state(AppState::InGame)),
+            (chunk_stream_tick_system,handle_chunk_load_requests_system,remesh_dirty_chunks, handle_chunk_load_requests_system).run_if(in_state(AppState::InGame)),
         );
     }
 }
@@ -50,11 +54,14 @@ impl Plugin for VoxelPlugin {
 fn spawn_chunks(
     mut commands: Commands,
     mut world: ResMut<VoxelWorld>,
+    mut chunk_store: ResMut<ChunkSaveStore>,
 ) {
     for cz in -1..=1 {
         for cx in -1..=1 {
             let pos = ChunkPos(IVec3::new(cx, 0, cz));
             let data = ChunkData { blocks: make_test_blocks() };
+
+            chunk_store.save_chunk(pos, &data); // zum Testen speichern
 
             let e = commands.spawn((
                 pos,
