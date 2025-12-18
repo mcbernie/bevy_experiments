@@ -26,7 +26,7 @@ pub struct ChunkMesh; // Marker: diese Entity ist das Mesh des Chunks (optional)
 
 impl ChunkData {
     #[inline]
-    fn idx(x: i32, y: i32, z: i32) -> usize {
+    pub fn idx(x: i32, y: i32, z: i32) -> usize {
         // wo liegt x, y, z im Vektor
         // z ist die plane
         // y ist eine reihe
@@ -50,4 +50,18 @@ pub fn chunk_origin_world(pos: ChunkPos) -> Vec3 {
         (pos.0.y * CHUNK_SIZE.y) as f32,
         (pos.0.z * CHUNK_SIZE.z) as f32,
     )
+}
+
+pub fn world_to_chunk_pos(world: Vec3) -> ChunkPos {
+    // Block-Koordinaten (floor für negatives)
+    let bx = world.x.floor() as i32;
+    let by = world.y.floor() as i32;
+    let bz = world.z.floor() as i32;
+
+    // Euclid-Division: -1..-16 landet korrekt in Chunk -1
+    ChunkPos(IVec3::new(
+        bx.div_euclid(CHUNK_SIZE.x),
+        by.div_euclid(CHUNK_SIZE.y),
+        bz.div_euclid(CHUNK_SIZE.z),
+    ))
 }

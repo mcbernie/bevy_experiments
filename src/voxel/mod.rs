@@ -1,4 +1,5 @@
 mod plugin;
+mod chunk_stream;
 mod chunk;
 mod meshing;
 mod components;

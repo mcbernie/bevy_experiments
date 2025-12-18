@@ -1,10 +1,9 @@
-use bevy::gizmos::config;
 use bevy::image::ImageSampler;
-use bevy::platform::cfg;
 use bevy::prelude::*;
 
 use crate::app_state::{AppState, LoadingProgress};
 use crate::config::BlocksConfigRes;
+use crate::voxel::chunk_stream::{ChunkLoadQueue, ChunkStreamConfig, RequestChunkLoad, StreamTimer, chunk_stream_tick_system, handle_chunk_load_requests_system};
 
 use super::meshing::build_chunk_mesh_with_neighbors;
 use super::chunk::{Block, CHUNK_SIZE, ChunkData, ChunkDirty, ChunkPos, chunk_origin_world};
@@ -28,11 +27,22 @@ pub struct VoxelPlugin;
 impl Plugin for VoxelPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<VoxelWorld>()
+        .insert_resource(ChunkStreamConfig {
+            view_radius: 4,
+            unload_radius: 6,
+            tick_seconds: 0.2,
+            y_min: 0,
+            y_max: 0,
+            load_budget: 2,
+        })
+        .insert_resource(ChunkLoadQueue::default())
+        .insert_resource(StreamTimer(Timer::from_seconds(0.2, TimerMode::Repeating)))
+        .add_message::<RequestChunkLoad>()
         .add_systems(Update, (setup_voxel_materials, poll_voxel_loaded).run_if(in_state(AppState::Loading)))
         .add_systems(OnEnter(AppState::InGame), spawn_chunks)
         .add_systems(
             Update,
-            remesh_dirty_chunks.run_if(in_state(AppState::InGame)),
+            (chunk_stream_tick_system,handle_chunk_load_requests_system,remesh_dirty_chunks).run_if(in_state(AppState::InGame)),
         );
     }
 }
