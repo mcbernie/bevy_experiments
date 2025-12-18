@@ -28,6 +28,8 @@ fn main() {
         .add_plugins(camera::CameraPlugin)
         .add_systems(Startup, setup_scene)
         .add_systems(Update, update_colors)
+        .add_systems(Update, exit_on_esc)
+
         .insert_resource(ClearColor(Color::BLACK))
         .run();
 }
@@ -85,4 +87,13 @@ Global: {}",
         config.global = !config.global;
     }
 
+}
+
+fn exit_on_esc(
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    mut app_exit_events: MessageWriter<AppExit>,
+) {
+    if keyboard_input.just_pressed(KeyCode::Escape) {
+        app_exit_events.write(AppExit::Success);
+    }
 }

@@ -5,10 +5,6 @@ pub const TILE_CONTENT: f32 = 16.0;
 pub const PADDING: f32 = 0.001;
 pub const CELL: f32 = TILE_CONTENT + 2.0 * PADDING; // 32.0
 
-pub const TILE_GRASS_TOP: (u32, u32) = (21, 5);
-pub const TILE_GRASS_SIDE: (u32, u32) = (20, 6);
-pub const TILE_DIRT: (u32, u32) = (17, 10);
-
 pub enum UvRot {
     R0,
     R90,

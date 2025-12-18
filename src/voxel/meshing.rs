@@ -8,7 +8,7 @@ use super::chunk::{Block, CHUNK_SIZE, ChunkPos};
 use super::plugin::VoxelWorld;
 
 use super::chunk::ChunkData;
-use super::tile::{TILE_DIRT, TILE_GRASS_SIDE, TILE_GRASS_TOP, UvRot, push_uvs, tile_uv};
+use super::tile::{UvRot, push_uvs, tile_uv};
 
 
 #[derive(Clone, Copy)]
@@ -47,32 +47,32 @@ pub fn build_chunk_mesh_with_neighbors(
 
                 // X+ (rechts ist luft, also sichtbare seite)
                 if get_block_world(&world, &all_chunks, chunk_pos, x+1, y, z) == Block::Air {
-                    push_face(&cfg, block, FaceDir::PosX, x, y, z, &mut positions, &mut normals, &mut uvs, &mut indices, is_surface);
+                    push_face(&cfg, block, FaceDir::PosX, x, y, z, &mut positions, &mut normals, &mut uvs, &mut indices);
                 }
 
                 // X- (links ist luft, also sichtbare seite)
                 if get_block_world(&world, &all_chunks, chunk_pos, x - 1, y, z) == Block::Air {
-                    push_face(&cfg, block, FaceDir::NegX, x, y, z, &mut positions, &mut normals, &mut uvs, &mut indices, is_surface);
+                    push_face(&cfg, block, FaceDir::NegX, x, y, z, &mut positions, &mut normals, &mut uvs, &mut indices);
                 }
 
                 // Y+ (oben ist luft, also sichtbare seite)
                 if get_block_world(&world, &all_chunks, chunk_pos, x, y + 1, z) == Block::Air {
-                    push_face(&cfg, block, FaceDir::PosY, x, y, z, &mut positions, &mut normals, &mut uvs, &mut indices, is_surface);
+                    push_face(&cfg, block, FaceDir::PosY, x, y, z, &mut positions, &mut normals, &mut uvs, &mut indices);
                 }
 
                 // Y- (vorne ist luft, also sichtbare seite)
                 if get_block_world(&world, &all_chunks, chunk_pos, x, y - 1, z) == Block::Air {
-                    push_face(&cfg, block, FaceDir::NegY, x, y, z, &mut positions, &mut normals, &mut uvs, &mut indices, is_surface);
+                    push_face(&cfg, block, FaceDir::NegY, x, y, z, &mut positions, &mut normals, &mut uvs, &mut indices);
                 }
 
                 // Z+ (hinten ist luft, also sichtbare seite)
                 if get_block_world(&world, &all_chunks, chunk_pos, x, y, z + 1) == Block::Air {
-                    push_face(&cfg, block, FaceDir::PosZ, x, y, z, &mut positions, &mut normals, &mut uvs, &mut indices, is_surface);
+                    push_face(&cfg, block, FaceDir::PosZ, x, y, z, &mut positions, &mut normals, &mut uvs, &mut indices);
                 }
 
                 // Z- (vorne ist luft, also sichtbare seite)
                 if get_block_world(&world, &all_chunks, chunk_pos, x, y, z - 1) == Block::Air {
-                    push_face(&cfg, block, FaceDir::NegZ, x, y, z, &mut positions, &mut normals, &mut uvs, &mut indices, is_surface);
+                    push_face(&cfg, block, FaceDir::NegZ, x, y, z, &mut positions, &mut normals, &mut uvs, &mut indices);
                 }
 
             }
@@ -100,7 +100,6 @@ fn push_face(
     normals: &mut Vec<[f32; 3]>,
     uvs: &mut Vec<[f32; 2]>,
     indices: &mut Vec<u32>,
-    is_surface: bool,
 ) {
     
     let base = positions.len() as u32;
