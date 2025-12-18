@@ -3,7 +3,8 @@ use bevy::image::ImageSampler;
 use bevy::platform::cfg;
 use bevy::prelude::*;
 
-use crate::app_state::AppState;
+use crate::app_state::{AppState, LoadingProgress};
+use crate::config::BlocksConfigRes;
 
 use super::meshing::build_chunk_mesh_with_neighbors;
 use super::chunk::{Block, CHUNK_SIZE, ChunkData, ChunkDirty, ChunkPos, chunk_origin_world};
@@ -27,11 +28,12 @@ pub struct VoxelPlugin;
 impl Plugin for VoxelPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<VoxelWorld>()
-        .add_systems(OnEnter(AppState::InGame), (setup_voxel_materials, spawn_chunks))
-            .add_systems(
-                Update,
-                remesh_dirty_chunks.run_if(in_state(AppState::InGame)),
-            );
+        .add_systems(Update, (setup_voxel_materials, poll_voxel_loaded).run_if(in_state(AppState::Loading)))
+        .add_systems(OnEnter(AppState::InGame), spawn_chunks)
+        .add_systems(
+            Update,
+            remesh_dirty_chunks.run_if(in_state(AppState::InGame)),
+        );
     }
 }
 
@@ -66,8 +68,10 @@ fn setup_voxel_materials(
     asset_server: Res<AssetServer>,
     mut images: ResMut<Assets<Image>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    cfg: Res<crate::config::BlocksConfigRes>,
+    loaded: Option<Res<BlocksConfigRes>>,
 ) {
+
+    let Some(cfg) = loaded else { return; }; 
 
     let texture_path = &cfg.0.atlas.texture;
     let tex: Handle<Image> = asset_server.load(format!("textures/{}", texture_path));
@@ -87,6 +91,19 @@ fn setup_voxel_materials(
     commands.insert_resource(VoxelMaterials { blocks: mat });
 }
 
+fn poll_voxel_loaded(
+    mats: Option<Res<VoxelMaterials>>,
+    loaded_cfg: Option<Res<BlocksConfigRes>>,
+    mut progress: ResMut<LoadingProgress>,
+) {
+    let Some(_cfg) = loaded_cfg else { return; };
+
+    // Atlas-Texture geladen?
+    if mats.is_some() && !progress.atlas_loaded {
+        progress.atlas_loaded = true;
+    }
+}
+
 fn remesh_dirty_chunks(
     mut commands: Commands,
     world: Res<VoxelWorld>,
@@ -96,7 +113,7 @@ fn remesh_dirty_chunks(
     dirty: Query<(Entity, &ChunkPos, &ChunkData, Option<&Children>), With<ChunkDirty>>,
     //chunks: Query<(Entity, &ChunkPos, &ChunkData, Option<&Children>), With<ChunkDirty>>,
     mesh_children: Query<Entity, With<ChunkMeshChild>>,
-    cfg: Res<crate::config::BlocksConfigRes>,
+    cfg: Res<BlocksConfigRes>,
 ) {
     for (chunk_e, &chunk_pos, data, children_opt) in &dirty {
         let mesh = build_chunk_mesh_with_neighbors(&cfg, &world, &all_chunks, chunk_pos, data);

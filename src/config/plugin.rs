@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy::asset::{AssetLoader, io::Reader, LoadContext};
-use crate::app_state::AppState;
+use crate::app_state::{AppState, LoadingProgress};
 
 use super::atlas::BlocksConfig;
 
@@ -34,18 +34,23 @@ fn load_blocks_config(mut commands: Commands, asset_server: Res<AssetServer>) {
     // assets/blocks.ron
     let handle: Handle<BlocksConfigAsset> = asset_server.load("blocks.ron");
     commands.insert_resource(BlocksConfigHandle(handle));
+    commands.insert_resource(LoadingProgress::default());
 }
 
 fn promote_blocks_config_to_resource(
     mut commands: Commands,
-    handle: Res<BlocksConfigHandle>,
+    handle: Option<Res<BlocksConfigHandle>>,
     assets: Res<Assets<BlocksConfigAsset>>,
-    mut next_state: ResMut<NextState<AppState>>,
+    mut progress: ResMut<LoadingProgress>,
 ) {
+    let Some(handle) = handle else {
+        return;
+    };
+
     if let Some(asset) = assets.get(&handle.0) {
         commands.insert_resource(BlocksConfigRes(asset.0.clone()));
         commands.remove_resource::<BlocksConfigHandle>();
-        next_state.set(AppState::InGame);
+        progress.config_loaded = true
     }
 }
 

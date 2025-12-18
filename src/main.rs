@@ -1,6 +1,6 @@
 use bevy::{color::palettes::css::WHITE, pbr::wireframe::{WireframeConfig, WireframePlugin}, prelude::*};
 
-use crate::app_state::AppState;
+use crate::{app_state::{AppState, LoadingProgress, despawn_loading_ui, spawn_loading_ui}, camera::Cubemap};
 
 mod app_state;
 mod config;
@@ -24,11 +24,14 @@ fn main() {
             // Can be changed per mesh using the `WireframeColor` component.
             default_color: WHITE.into(),
         })
+        .add_systems(OnEnter(AppState::Loading), spawn_loading_ui)
+        .add_systems(OnExit(AppState::Loading), despawn_loading_ui)
         .add_plugins((config::AtlasConfigPlugin, voxel::VoxelPlugin))
         .add_plugins(camera::CameraPlugin)
         .add_systems(Startup, setup_scene)
         .add_systems(Update, update_colors)
         .add_systems(Update, exit_on_esc)
+        .add_systems(Update, advance_to_ingame_when_ready.run_if(in_state(AppState::Loading)))
 
         .insert_resource(ClearColor(Color::BLACK))
         .run();
@@ -95,5 +98,14 @@ fn exit_on_esc(
 ) {
     if keyboard_input.just_pressed(KeyCode::Escape) {
         app_exit_events.write(AppExit::Success);
+    }
+}
+
+fn advance_to_ingame_when_ready(
+    progress: Res<LoadingProgress>,
+    mut next_state: ResMut<NextState<AppState>>,
+) {
+    if progress.config_loaded && progress.atlas_loaded && progress.skybox_loaded {
+        next_state.set(AppState::InGame);
     }
 }
