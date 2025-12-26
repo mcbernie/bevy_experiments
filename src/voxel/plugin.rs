@@ -101,6 +101,7 @@ fn setup_voxel_materials(
     let mat = materials.add(StandardMaterial {
         base_color_texture: Some(tex),
         perceptual_roughness: 1.0,
+        //cull_mode: None,
         unlit: true,
         ..default()
     });
@@ -134,7 +135,7 @@ fn remesh_dirty_chunks(
 ) {
     for (chunk_e, &chunk_pos, data, children_opt) in &dirty {
 
-        let mesh = greedy_meshing::build_chunk_mesh_greedy_z(&cfg, &world, &all_chunks, chunk_pos, data);
+        let mesh = greedy_meshing::build_chunk_mesh_greedy_all_axes(&cfg, &world, &all_chunks, chunk_pos, data);
         //let mesh = build_chunk_mesh_with_neighbors(&cfg, &world, &all_chunks, chunk_pos, data);
         let mesh_handle = meshes.add(mesh);
 
