@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::{config::BlocksConfigRes, voxel::meshing::{FaceDir, face_kind, tile_for}};
+
 pub const CHUNK_SIZE: IVec3 = IVec3::new(16, 16, 16);
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -42,6 +44,27 @@ impl ChunkData {
         }
         self.blocks[Self::idx(x, y, z)]
     }
+}
+
+/// Sehr simpel: pro Block + Richtung eine ID.
+/// Wichtig: Greedy darf nur Flächen zusammenfassen, deren ID identisch ist.
+#[inline]
+pub fn face_id(cfg: &BlocksConfigRes, block: Block, dir: FaceDir) -> u32 {
+    let face = face_kind(dir);
+    let tile = tile_for(cfg, block, face);
+    // tile ist (u32,u32) -> packen wir in u32
+    let t = (tile.0 & 0xFFFF) | ((tile.1 & 0xFFFF) << 16);
+
+    let d = match dir {
+        FaceDir::PosX => 1,
+        FaceDir::NegX => 2,
+        FaceDir::PosY => 3,
+        FaceDir::NegY => 4,
+        FaceDir::PosZ => 5,
+        FaceDir::NegZ => 6,
+    };
+
+    (t as u32) ^ ((d as u32) << 24)
 }
 
 pub fn chunk_origin_world(pos: ChunkPos) -> Vec3 {

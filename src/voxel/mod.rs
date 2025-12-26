@@ -5,5 +5,6 @@ mod chunk;
 mod meshing;
 mod components;
 mod tile;
+mod greedy_meshing;
 
 pub use plugin::VoxelPlugin;

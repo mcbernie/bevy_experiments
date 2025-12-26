@@ -12,7 +12,7 @@ use super::tile::{UvRot, push_uvs, tile_uv};
 
 
 #[derive(Clone, Copy)]
-enum FaceDir {
+pub enum FaceDir {
     PosX, // rechts
     NegX, // links
     PosY, // hinten
@@ -22,7 +22,7 @@ enum FaceDir {
 }
 
 #[derive(Clone, Copy)]
-enum BlockFace { Top, Bottom, Side }
+pub enum BlockFace { Top, Bottom, Side }
 
 pub fn build_chunk_mesh_with_neighbors(
     cfg: &BlocksConfigRes,
@@ -194,7 +194,7 @@ fn neighbor_coord(base: ChunkPos, x: i32, y: i32, z: i32) -> (ChunkPos, IVec3) {
     (ChunkPos(base.0 + IVec3::new(ox, oy, oz)), IVec3::new(lx, ly, lz))
 }
 
-fn get_block_world(
+pub fn get_block_world(
     world: &VoxelWorld,
     all_chunks: &Query<&ChunkData>,
     base_chunk: ChunkPos,
@@ -215,7 +215,7 @@ fn get_block_world(
     data.get_local(local.x, local.y, local.z) // deine lokale get()-Methode, ohne "out of bounds = Air"
 }
 
-fn effective_block_kind(
+pub fn effective_block_kind(
     block: Block,
     above_is_air: bool,
 ) -> Block {
@@ -226,7 +226,7 @@ fn effective_block_kind(
     }
 }
 
-fn face_kind(dir: FaceDir) -> BlockFace {
+pub fn face_kind(dir: FaceDir) -> BlockFace {
     match dir {
         FaceDir::PosY => BlockFace::Top,
         FaceDir::NegY => BlockFace::Bottom,
@@ -234,7 +234,7 @@ fn face_kind(dir: FaceDir) -> BlockFace {
     }
 }
 
-fn tile_for(cfg: &BlocksConfigRes, block: Block, face: BlockFace) -> (u32, u32) {
+pub fn tile_for(cfg: &BlocksConfigRes, block: Block, face: BlockFace) -> (u32, u32) {
     let key = match block {
         Block::Grass => "grass",
         Block::Dirt => "dirt",

@@ -3,7 +3,7 @@ use bevy::prelude::*;
 
 use crate::app_state::{AppState, LoadingProgress};
 use crate::config::BlocksConfigRes;
-use crate::voxel::chunk;
+use crate::voxel::{chunk, greedy_meshing};
 use crate::voxel::chunk_store::{ChunkSaveStore, RequestChunkUnload};
 use crate::voxel::chunk_stream::{ChunkLoadQueue, ChunkStreamConfig, RequestChunkLoad, StreamTimer, chunk_stream_tick_system, handle_chunk_load_requests_system};
 
@@ -133,7 +133,9 @@ fn remesh_dirty_chunks(
     cfg: Res<BlocksConfigRes>,
 ) {
     for (chunk_e, &chunk_pos, data, children_opt) in &dirty {
-        let mesh = build_chunk_mesh_with_neighbors(&cfg, &world, &all_chunks, chunk_pos, data);
+
+        let mesh = greedy_meshing::build_chunk_mesh_greedy_z(&cfg, &world, &all_chunks, chunk_pos, data);
+        //let mesh = build_chunk_mesh_with_neighbors(&cfg, &world, &all_chunks, chunk_pos, data);
         let mesh_handle = meshes.add(mesh);
 
         // vorhandenes Mesh-Kind suchen
