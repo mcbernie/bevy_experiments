@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+noise = "0.9"
 anyhow = "1.0.100"
 bevy = { version = "0.17.3", features = ["dynamic_linking"] }
 ron = "0.12.0"

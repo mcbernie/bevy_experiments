@@ -3,11 +3,10 @@ use bevy::prelude::*;
 
 use crate::app_state::{AppState, LoadingProgress};
 use crate::config::BlocksConfigRes;
-use crate::voxel::{chunk, greedy_meshing};
+use crate::voxel::greedy_meshing;
 use crate::voxel::chunk_store::{ChunkSaveStore, RequestChunkUnload};
 use crate::voxel::chunk_stream::{ChunkLoadQueue, ChunkStreamConfig, RequestChunkLoad, StreamTimer, chunk_stream_tick_system, handle_chunk_load_requests_system};
 
-use super::meshing::build_chunk_mesh_with_neighbors;
 use super::chunk::{Block, CHUNK_SIZE, ChunkData, ChunkDirty, ChunkPos, chunk_origin_world};
 use super::components::ChunkMeshChild;
 
@@ -31,8 +30,8 @@ impl Plugin for VoxelPlugin {
         app.init_resource::<VoxelWorld>()
         .init_resource::<ChunkSaveStore>()
         .insert_resource(ChunkStreamConfig {
-            view_radius: 4,
-            unload_radius: 6,
+            view_radius: 6,
+            unload_radius: 8,
             tick_seconds: 0.2,
             y_min: 0,
             y_max: 0,
@@ -100,7 +99,7 @@ fn setup_voxel_materials(
 
     let mat = materials.add(StandardMaterial {
         base_color_texture: Some(tex),
-        perceptual_roughness: 1.0,
+        perceptual_roughness: 1.8,
         //cull_mode: None,
         unlit: true,
         ..default()

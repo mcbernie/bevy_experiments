@@ -7,10 +7,10 @@ use bevy::{
 use crate::{
     config::BlocksConfigRes,
     voxel::{
-        chunk::{face_id, Block, CHUNK_SIZE, ChunkData, ChunkPos},
-        meshing::{face_kind, get_block_world, tile_for, effective_block_kind, FaceDir},
+        chunk::{Block, CHUNK_SIZE, ChunkData, ChunkPos, face_id},
+        meshing::{FaceDir, effective_block_kind, face_kind, get_block_world, tile_for},
         plugin::VoxelWorld,
-        tile::{tile_uv, push_uvs, UvRot},
+        tile::{UvRot, push_uvs, tile_uv},
     },
 };
 
@@ -269,9 +269,6 @@ fn axis_neg_dir(axis: usize) -> FaceDir {
     }
 }
 
-/// Emit eines greedy-Quads.
-/// Es liegt auf der Grenzfläche bei `d = slice` entlang `axis`.
-/// In U/V spannt es `u..u+w` und `v..v+h`.
 fn emit_greedy_quad(
     cfg: &BlocksConfigRes,
     block: Block,
@@ -281,7 +278,7 @@ fn emit_greedy_quad(
     v_axis: usize,
     u: i32,
     v: i32,
-    d: i32, // slice (Grenzfläche)
+    d: i32,
     w: i32,
     h: i32,
     positions: &mut Vec<[f32; 3]>,
@@ -289,47 +286,10 @@ fn emit_greedy_quad(
     uvs: &mut Vec<[f32; 2]>,
     indices: &mut Vec<u32>,
 ) {
-    let base = positions.len() as u32;
-
-    // Wir bauen 4 Ecken im (U,V) Rechteck und setzen axis-Koordinate auf d.
-    // Danach ordnen wir die Punkte je nach dir so an, dass "außen" CCW ist.
-    let p_uvd = [
-        (u,     v,     d),
-        (u + w, v,     d),
-        (u + w, v + h, d),
-        (u,     v + h, d),
-    ];
-
-    // In xyz umrechnen
-    let mut p_xyz = [[0.0f32; 3]; 4];
-    for (i, (uu, vv, dd)) in p_uvd.iter().copied().enumerate() {
-        let (x, y, z) = axis_uvd_to_xyz(axis, u_axis, v_axis, uu, vv, dd);
-        p_xyz[i] = [x as f32, y as f32, z as f32];
-    }
-
-    // Normal & Vertex-Reihenfolge abhängig von FaceDir.
-    // Wichtig: je nach Richtung muss die Quad-Winding gedreht werden.
-    let (n, order) = match dir {
-        FaceDir::PosX => ([ 1.0,  0.0,  0.0], [0, 3, 2, 1]),
-        FaceDir::NegX => ([-1.0,  0.0,  0.0], [0, 1, 2, 3]),
-
-        FaceDir::PosY => ([ 0.0,  1.0,  0.0], [0, 1, 2, 3]),
-        FaceDir::NegY => ([ 0.0, -1.0,  0.0], [0, 3, 2, 1]),
-
-        FaceDir::PosZ => ([ 0.0,  0.0,  1.0], [0, 3, 2, 1]),
-        FaceDir::NegZ => ([ 0.0,  0.0, -1.0], [0, 1, 2, 3]),
-    };
-
-    let p0 = p_xyz[order[0]];
-    let p1 = p_xyz[order[1]];
-    let p2 = p_xyz[order[2]];
-    let p3 = p_xyz[order[3]];
-
-    // Tile bestimmen
     let face = face_kind(dir);
     let tile = tile_for(cfg, block, face);
+    let rect = tile_uv(tile);
 
-    // Rotation: wie bei dir (kannst du später feiner machen pro Richtung)
     let rot = match dir {
         FaceDir::PosZ | FaceDir::PosY => UvRot::R90,
         FaceDir::NegY | FaceDir::NegZ => UvRot::R180,
@@ -337,16 +297,59 @@ fn emit_greedy_quad(
         _ => UvRot::R90,
     };
 
-    // UVs: derzeit wie vorher (eine Textur über das ganze Quad gestreckt).
-    // Wenn du wirklich kacheln willst, musst du das bewusst lösen (siehe Hinweis unten).
-    let rect = (tile_uv(tile), rot);
-    push_uvs(rect.0, rect.1, uvs);
+    let normal = match dir {
+        FaceDir::PosX => [ 1.0,  0.0,  0.0],
+        FaceDir::NegX => [-1.0,  0.0,  0.0],
+        FaceDir::PosY => [ 0.0,  1.0,  0.0],
+        FaceDir::NegY => [ 0.0, -1.0,  0.0],
+        FaceDir::PosZ => [ 0.0,  0.0,  1.0],
+        FaceDir::NegZ => [ 0.0,  0.0, -1.0],
+    };
 
-    positions.extend_from_slice(&[p0, p1, p2, p3]);
-    normals.extend_from_slice(&[n, n, n, n]);
+    let order = match dir {
+        FaceDir::PosX => [0, 3, 2, 1],
+        FaceDir::NegX => [0, 1, 2, 3],
+        FaceDir::PosY => [0, 1, 2, 3],
+        FaceDir::NegY => [0, 3, 2, 1],
+        FaceDir::PosZ => [0, 3, 2, 1],
+        FaceDir::NegZ => [0, 1, 2, 3],
+    };
 
-    indices.extend_from_slice(&[
-        base, base + 2, base + 1,
-        base, base + 3, base + 2,
-    ]);
+    // 🔴 HIER passiert das Entscheidende:
+    // Greedy-Fläche → Blockweise Quads
+    for dv in 0..h {
+        for du in 0..w {
+            let rot = rot.clone();
+            let base = positions.len() as u32;
+
+            let p_uvd = [
+                (u + du,     v + dv,     d),
+                (u + du + 1, v + dv,     d),
+                (u + du + 1, v + dv + 1, d),
+                (u + du,     v + dv + 1, d),
+            ];
+
+            let mut p_xyz = [[0.0; 3]; 4];
+            for (i, (uu, vv, dd)) in p_uvd.iter().copied().enumerate() {
+                let (x, y, z) = axis_uvd_to_xyz(axis, u_axis, v_axis, uu, vv, dd);
+                p_xyz[i] = [x as f32, y as f32, z as f32];
+            }
+
+            let p0 = p_xyz[order[0]];
+            let p1 = p_xyz[order[1]];
+            let p2 = p_xyz[order[2]];
+            let p3 = p_xyz[order[3]];
+
+            positions.extend_from_slice(&[p0, p1, p2, p3]);
+            normals.extend_from_slice(&[normal, normal, normal, normal]);
+
+            // ✅ EXAKT 1 Tile pro Block
+            push_uvs(rect, rot, uvs);
+
+            indices.extend_from_slice(&[
+                base, base + 2, base + 1,
+                base, base + 3, base + 2,
+            ]);
+        }
+    }
 }

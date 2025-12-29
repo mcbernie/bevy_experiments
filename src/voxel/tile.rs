@@ -5,6 +5,7 @@ pub const TILE_CONTENT: f32 = 16.0;
 pub const PADDING: f32 = 0.001;
 pub const CELL: f32 = TILE_CONTENT + 2.0 * PADDING; // 32.0
 
+#[derive(Clone, Copy)]
 pub enum UvRot {
     R0,
     R90,

@@ -45,7 +45,7 @@ fn setup_scene(
 
     commands.spawn((
         DirectionalLight {
-            illuminance: 20_000.0,
+            illuminance: 10_000.0,
             ..default()
         },
         Transform::from_rotation(Quat::from_euler(EulerRot::XYZ, -0.6, 0.7, 0.0)),

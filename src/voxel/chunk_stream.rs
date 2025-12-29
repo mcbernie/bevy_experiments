@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashSet, VecDeque};
 
 use crate::voxel::{chunk::{Block, CHUNK_SIZE, ChunkData, chunk_origin_world}, chunk_store::ChunkSaveStore, plugin::VoxelWorld};
 
@@ -100,19 +100,53 @@ pub fn chunk_stream_tick_system(
     }
 }
 
-fn generate_chunk_data(pos: ChunkPos) -> ChunkData {
-    // Platzhalter: mach hier später Noise / Terrain rein
+use noise::{NoiseFn, Perlin};
+
+pub fn generate_chunk_data(pos: ChunkPos) -> ChunkData {
     let mut blocks = vec![Block::Air; (CHUNK_SIZE.x * CHUNK_SIZE.y * CHUNK_SIZE.z) as usize];
 
-    // Beispiel: simple Ebene bei world_y == 0
-    // Chunk y==0 komplett Dirt/Grass
-    if pos.0.y == 0 {
-        for z in 0..CHUNK_SIZE.z {
-            for y in 0..CHUNK_SIZE.y {
-                for x in 0..CHUNK_SIZE.x {
-                    let idx = ChunkData::idx(x, y, z);
-                    blocks[idx] = if y == CHUNK_SIZE.y - 1 { Block::Grass } else { Block::Dirt };
-                }
+    // Weltweite Chunk-Offsets
+    let chunk_world_x = pos.0.x * CHUNK_SIZE.x;
+    let chunk_world_y = pos.0.y * CHUNK_SIZE.y;
+    let chunk_world_z = pos.0.z * CHUNK_SIZE.z;
+
+    // Perlin Noise
+    let perlin = Perlin::new(42); // Seed
+
+    // Terrain-Parameter
+    let base_height = 5;     // Grundniveau
+    let height_scale = 6.0;  // Höhenvariation
+    let noise_scale = 0.05;   // Frequenz
+
+    for z in 0..CHUNK_SIZE.z {
+        for x in 0..CHUNK_SIZE.x {
+            // World-Koordinaten (wichtig!)
+            let wx = (chunk_world_x + x) as f64;
+            let wz = (chunk_world_z + z) as f64;
+
+            let n = perlin.get([wx * noise_scale, wz * noise_scale]);
+            let height = base_height + (n * height_scale) as i32;
+            if height <= 0 {
+                debug!("Negative Höhe bei Chunk {:?}, x={}, z={}: height={}", pos, wx, wz, height);
+            }
+
+            // 0 ist immer Boden!!
+            let idx = ChunkData::idx(x, 0, z);
+            blocks[idx] = Block::Stone;
+
+            for y in 1..CHUNK_SIZE.y {
+                let wy = chunk_world_y + y;
+                let idx = ChunkData::idx(x, y, z);
+
+                blocks[idx] = if wy > height {
+                    Block::Air
+                } else if wy == height {
+                    Block::Grass
+                } else if wy > height - 4 {
+                    Block::Dirt
+                } else {
+                    Block::Stone
+                };
             }
         }
     }
