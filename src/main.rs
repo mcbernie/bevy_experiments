@@ -28,6 +28,7 @@ fn main() {
         .add_systems(OnExit(AppState::Loading), despawn_loading_ui)
         .add_plugins(config::SystemConfigPlugin)
         .add_plugins(camera::CameraPlugin)
+        .add_plugins(meshing::MeshingPlugin)
         .add_systems(Startup, setup_scene)
         .add_systems(Update, update_colors)
         .add_systems(Update, exit_on_esc)
