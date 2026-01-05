@@ -30,6 +30,7 @@ impl MeshBuilder {
         self.positions.extend([a, b, c, d]);
         self.normals.extend([normal; 4]);
 
+        // bevy used CW nicht CCW!
         self.indices.extend([
             base, base + 2, base + 1,
             base, base + 3, base + 2,
