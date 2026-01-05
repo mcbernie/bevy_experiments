@@ -1,10 +1,9 @@
 use bevy::{color::palettes::css::WHITE, pbr::wireframe::{WireframeConfig, WireframePlugin}, prelude::*};
 
-use crate::{app_state::{AppState, LoadingProgress, despawn_loading_ui, spawn_loading_ui}, camera::Cubemap};
+use crate::{app_state::{AppState, LoadingProgress, despawn_loading_ui, spawn_loading_ui}};
 
 mod app_state;
 mod config;
-mod voxel;
 mod camera;
 
 
@@ -26,7 +25,7 @@ fn main() {
         })
         .add_systems(OnEnter(AppState::Loading), spawn_loading_ui)
         .add_systems(OnExit(AppState::Loading), despawn_loading_ui)
-        .add_plugins((config::AtlasConfigPlugin, voxel::VoxelPlugin))
+        .add_plugins(config::AtlasConfigPlugin)
         .add_plugins(camera::CameraPlugin)
         .add_systems(Startup, setup_scene)
         .add_systems(Update, update_colors)
