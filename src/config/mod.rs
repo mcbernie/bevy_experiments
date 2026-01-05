@@ -1,5 +1,5 @@
-mod atlas;
+mod configuration;
 mod plugin;
 
-pub use plugin::BlocksConfigRes;
-pub use plugin::AtlasConfigPlugin;
+pub use plugin::SystemConfigRes;
+pub use plugin::SystemConfigPlugin;

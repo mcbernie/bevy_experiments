@@ -12,6 +12,7 @@ pub struct LoadingProgress {
     pub config_loaded: bool,
     pub atlas_loaded: bool,
     pub skybox_loaded: bool,
+    pub meshing_data_loaded: bool,
 }
 
 #[derive(Component)]

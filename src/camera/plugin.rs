@@ -2,7 +2,7 @@ use bevy::image::TextureFormatPixelInfo;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureViewDescriptor, TextureViewDimension};
 use bevy::{core_pipeline::Skybox, input::mouse::MouseMotion, pbr::ScreenSpaceAmbientOcclusion, prelude::*};
 use crate::app_state::{AppState, LoadingProgress};
-use crate::config::BlocksConfigRes;
+use crate::config::SystemConfigRes;
 
 use super::components::FlyCam;
 use super::skybox::Cubemap;
@@ -20,9 +20,9 @@ impl Plugin for CameraPlugin {
 fn load_skybox(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    config: If<Res<BlocksConfigRes>>,
+    config: If<Res<SystemConfigRes>>,
 ) {
-    let config: &BlocksConfigRes = &config;
+    let config: &SystemConfigRes = &config;
 
     let skybox_handle = asset_server.load(format!("skybox/{}", &config.0.skybox.texture));
 
