@@ -8,11 +8,17 @@ use crate::{
     config::BlocksConfigRes,
     voxel::{
         chunk::{Block, CHUNK_SIZE, ChunkData, ChunkPos, face_id},
-        meshing::{FaceDir, effective_block_kind, face_kind, get_block_world, tile_for},
+        meshing::{FaceDir, effective_block_kind, face_kind, get_block_world, local_to_world, tile_for},
         plugin::VoxelWorld,
         tile::{UvRot, push_uvs, tile_uv},
     },
 };
+
+enum Axis {
+    X = 0,
+    Y = 1,
+    Z = 2,
+}
 
 /// Greedy meshing über alle 3 Achsen.
 /// Idee:
@@ -121,18 +127,40 @@ fn greedy_axis(
                     // Surface-Detection: bei dir war "oben = y+1" Logik drin.
                     // Das bleibt hier identisch, nur mit Weltkoordinaten.
                     let is_surface = {
-                        let (x, y, z) = a_pos;
-                        get_block_world(world, all_chunks, chunk_pos, x, y + 1, z) == Block::Air
+                        let wp = local_to_world(chunk_pos, a_pos);
+                        get_block_world(
+                            world,
+                            all_chunks,
+                            chunk_pos,
+                            wp.x,
+                            wp.y + 1,
+                            wp.z,
+                        ) == Block::Air
                     };
+                    //let is_surface = {
+                    //    let (x, y, z) = a_pos;
+                    //    get_block_world(world, all_chunks, chunk_pos, x, y + 1, z) == Block::Air
+                    //};
                     let eff = effective_block_kind(a, is_surface);
                     (face_id(cfg, eff, dir), eff, dir)
                 } else if b != Block::Air && a == Block::Air {
                     // sichtbare Face in -axis Richtung am Block b
                     let dir = axis_neg_dir(axis);
                     let is_surface = {
-                        let (x, y, z) = b_pos;
-                        get_block_world(world, all_chunks, chunk_pos, x, y + 1, z) == Block::Air
+                        let wp = local_to_world(chunk_pos, a_pos);
+                        get_block_world(
+                            world,
+                            all_chunks,
+                            chunk_pos,
+                            wp.x,
+                            wp.y + 1,
+                            wp.z,
+                        ) == Block::Air
                     };
+                    //let is_surface = {
+                    //    let (x, y, z) = b_pos;
+                    //    get_block_world(world, all_chunks, chunk_pos, x, y + 1, z) == Block::Air
+                    //};
                     let eff = effective_block_kind(b, is_surface);
                     (face_id(cfg, eff, dir), eff, dir)
                 } else {

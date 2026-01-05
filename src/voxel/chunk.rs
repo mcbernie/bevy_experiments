@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::{config::BlocksConfigRes, voxel::meshing::{FaceDir, face_kind, tile_for}};
 
-pub const CHUNK_SIZE: IVec3 = IVec3::new(16, 16, 16);
+pub const CHUNK_SIZE: IVec3 = IVec3::new(32, 32, 32);
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Block {

@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use std::collections::{HashSet, VecDeque};
 
-use crate::voxel::{chunk::{Block, CHUNK_SIZE, ChunkData, chunk_origin_world}, chunk_store::ChunkSaveStore, plugin::VoxelWorld};
+use crate::voxel::{chunk::{Block, CHUNK_SIZE, ChunkData, chunk_origin_world}, chunk_queue::{ChunkLoadQueue, QueuedChunk}, chunk_store::ChunkSaveStore, plugin::VoxelWorld};
 
 use super::chunk::{ChunkDirty, world_to_chunk_pos, ChunkPos};
 
@@ -15,17 +15,26 @@ pub struct ChunkStreamConfig {
     pub load_budget: usize,   // wie viele Chunks pro Tick
 }
 
-#[derive(Resource, Default)]
-pub struct ChunkLoadQueue {
-    pub queued: HashSet<ChunkPos>,
-    pub fifo: VecDeque<ChunkPos>,
-}
-
 #[derive(Resource)]
 pub struct StreamTimer(pub Timer);
 
 #[derive(Message, Clone, Copy)]
 pub struct RequestChunkLoad(pub ChunkPos);
+
+fn chunk_priority(
+    center: ChunkPos,
+    forward: Vec3,
+    pos: ChunkPos,
+) -> f32 {
+    let d = (pos.0 - center.0).as_vec3();
+
+    let dist = d.length();                 // Nähe
+    let dir = d.normalize_or_zero();
+    let facing = forward.dot(dir);         // [-1..1], vorne = 1
+
+    // Gewichtung:
+    dist * 1.0 - facing * 2.0
+}
 
 
 fn wanted_chunks(center: ChunkPos, r: i32, y_min: i32, y_max: i32) -> HashSet<ChunkPos> {
@@ -49,7 +58,6 @@ pub fn chunk_stream_tick_system(
     cfg: Res<ChunkStreamConfig>,
     mut timer: ResMut<StreamTimer>,
 
-    // Quelle: ich nehme Kamera. Wenn du Player hast, nimm With<Player>
     cam_q: Query<&GlobalTransform, With<Camera3d>>,
 
     mut world: ResMut<VoxelWorld>,
@@ -63,22 +71,32 @@ pub fn chunk_stream_tick_system(
     }
 
     let Ok(cam_tf) = cam_q.single() else { return; };
-    let center = world_to_chunk_pos(cam_tf.translation());
 
-    // 1) missing -> queue
+    let center = world_to_chunk_pos(cam_tf.translation());
+    let forward = cam_tf.forward();
+
+    // 1) fehlende Chunks → Heap
     let wanted = wanted_chunks(center, cfg.view_radius, cfg.y_min, cfg.y_max);
+
     for pos in wanted.iter().copied() {
-        if world.chunks.contains_key(&pos) { continue; }
+        if world.chunks.contains_key(&pos) {
+            continue;
+        }
+
         if queue.queued.insert(pos) {
-            queue.fifo.push_back(pos);
+            let score = chunk_priority(center, *forward, pos);
+            queue.heap.push(QueuedChunk { pos, score });
         }
     }
 
-    // 2) unload far (mit Hysterese)
+    // 2) Unload mit Hysterese
     let mut to_unload = Vec::new();
     for (&pos, &ent) in world.chunks.iter() {
         let d = chebyshev_dist(pos, center);
-        if d.x > cfg.unload_radius || d.z > cfg.unload_radius || d.y > (cfg.unload_radius.max(2)) {
+        if d.x > cfg.unload_radius
+            || d.z > cfg.unload_radius
+            || d.y > cfg.unload_radius.max(2)
+        {
             to_unload.push((pos, ent));
         }
     }
@@ -88,17 +106,17 @@ pub fn chunk_stream_tick_system(
         commands.entity(ent).despawn_children();
         commands.entity(ent).despawn();
 
-        // wichtig: Nachbarn remeshen, weil Seiten wieder sichtbar werden können
         mark_neighbors_dirty(&mut commands, &world, pos);
     }
 
-    // 3) budgeted load requests
+    // 3) Budgetiertes Laden (Heap!)
     for _ in 0..cfg.load_budget {
-        let Some(pos) = queue.fifo.pop_front() else { break; };
-        queue.queued.remove(&pos);
-        ev_load.write(RequestChunkLoad(pos));
+        let Some(entry) = queue.heap.pop() else { break; };
+        queue.queued.remove(&entry.pos);
+        ev_load.write(RequestChunkLoad(entry.pos));
     }
 }
+
 
 use noise::{NoiseFn, Perlin};
 

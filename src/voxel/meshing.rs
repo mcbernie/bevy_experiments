@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use crate::config::BlocksConfigRes;
+use crate::voxel::chunk::chunk_origin_world;
 use super::chunk::{Block, CHUNK_SIZE, ChunkPos};
 use super::plugin::VoxelWorld;
 use super::chunk::ChunkData;
@@ -52,6 +53,10 @@ pub fn get_block_world(
     };
 
     data.get_local(local.x, local.y, local.z) // deine lokale get()-Methode, ohne "out of bounds = Air"
+}
+
+pub fn local_to_world(chunk_pos: ChunkPos, (x,y,z): (i32,i32,i32)) -> IVec3 {
+    chunk_origin_world(chunk_pos).as_ivec3() + IVec3::new(x, y, z)
 }
 
 pub fn effective_block_kind(
