@@ -7,15 +7,14 @@ use crate::{
         despawn_loading_ui,
         spawn_loading_ui
     }, 
-    base::{
-        create_plane_mesh
-    }
+    base::create_plane_mesh, simulation::material::ParticleMaterial
 };
 
 mod app_state;
 mod config;
 mod camera;
 mod base;
+mod simulation;
 
 
 fn main() {
@@ -23,6 +22,7 @@ fn main() {
         .add_plugins((
             DefaultPlugins,
             MaterialPlugin::<ExtendedMaterial<StandardMaterial,base::CheckerMaterial>>::default(),
+            MaterialPlugin::<ParticleMaterial>::default(),
             WireframePlugin::default(),
         ))
         .init_state::<AppState>()
@@ -39,6 +39,7 @@ fn main() {
         .add_systems(OnExit(AppState::Loading), despawn_loading_ui)
         .add_plugins(config::SystemConfigPlugin)
         .add_plugins(camera::CameraPlugin)
+        .add_plugins(simulation::SimulationPlugin)
         .add_systems(Startup, setup_scene)
         .add_systems(Startup, create_plane_mesh)
         .add_systems(Update, update_colors)
