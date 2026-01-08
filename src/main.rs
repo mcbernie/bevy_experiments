@@ -1,4 +1,4 @@
-use bevy::{color::palettes::css::WHITE, pbr::wireframe::{WireframeConfig, WireframePlugin}, prelude::*};
+use bevy::{color::palettes::css::WHITE, pbr::{ExtendedMaterial, wireframe::{WireframeConfig, WireframePlugin}}, prelude::*};
 
 use crate::{
     app_state::{
@@ -22,6 +22,7 @@ fn main() {
     App::new()
         .add_plugins((
             DefaultPlugins,
+            MaterialPlugin::<ExtendedMaterial<StandardMaterial,base::CheckerMaterial>>::default(),
             WireframePlugin::default(),
         ))
         .init_state::<AppState>()
