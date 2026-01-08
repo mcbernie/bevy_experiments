@@ -1,11 +1,21 @@
 use bevy::{color::palettes::css::WHITE, pbr::wireframe::{WireframeConfig, WireframePlugin}, prelude::*};
 
-use crate::{app_state::{AppState, LoadingProgress, despawn_loading_ui, spawn_loading_ui}};
+use crate::{
+    app_state::{
+        AppState, 
+        LoadingProgress, 
+        despawn_loading_ui,
+        spawn_loading_ui
+    }, 
+    base::{
+        create_plane_mesh
+    }
+};
 
 mod app_state;
 mod config;
 mod camera;
-mod meshing;
+mod base;
 
 
 fn main() {
@@ -28,8 +38,8 @@ fn main() {
         .add_systems(OnExit(AppState::Loading), despawn_loading_ui)
         .add_plugins(config::SystemConfigPlugin)
         .add_plugins(camera::CameraPlugin)
-        .add_plugins(meshing::MeshingPlugin)
         .add_systems(Startup, setup_scene)
+        .add_systems(Startup, create_plane_mesh)
         .add_systems(Update, update_colors)
         .add_systems(Update, exit_on_esc)
         .add_systems(Update, advance_to_ingame_when_ready.run_if(in_state(AppState::Loading)))
