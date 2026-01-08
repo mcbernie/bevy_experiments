@@ -1,6 +1,13 @@
 use bevy::prelude::*;
-use bevy::render::render_resource::{BindGroup, Buffer, CachedComputePipelineId};
+use bevy::render::render_resource::{BindGroup, Buffer, CachedComputePipelineId, ShaderType};
 use bevy::render::storage::ShaderStorageBuffer;
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable, ShaderType)]
+pub struct ParticlePosition {
+    pub pos: [f32; 3],
+    pub _pad: f32,
+}
 
 #[derive(Resource)]
 pub struct ComputePipelineState {

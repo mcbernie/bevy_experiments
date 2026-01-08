@@ -4,12 +4,11 @@ use bevy::{
         render_resource::{
             BindGroupEntry, BindGroupLayoutEntry, BindingType, BufferBindingType, BufferDescriptor, BufferInitDescriptor, BufferUsages, CommandEncoderDescriptor, ComputePassDescriptor, ComputePipelineDescriptor, MapMode, PipelineCache, PollType, ShaderStages, ShaderType
         }, 
-        renderer::{RenderDevice, RenderQueue}, storage::ShaderStorageBuffer
+        renderer::{RenderDevice, RenderQueue}
     }
 };
-use bytemuck::cast_slice;
 
-use crate::simulation::structs::{ComputeBindGroup, ComputeBuffers, ReadbackBuffer, SharedComputeBuffers};
+use crate::simulation::structs::{ComputeBindGroup, ComputeBuffers, ParticlePosition, ReadbackBuffer, SharedComputeBuffers };
 use super::structs::{ComputePipelineState, SimParams};
 
 #[derive(Resource, Default)]
@@ -17,32 +16,7 @@ pub struct ReadbackState {
     pub busy: bool,
 }
 
-#[repr(C)]
-#[derive(Clone, Copy, ShaderType)]
-struct ParticlePosition {
-    pos: Vec3, // Bevy-Vec3 ist korrekt gepaddet
-}
-
-pub fn init_compute_buffers(
-    mut commands: Commands,
-    mut storage_buffers: ResMut<Assets<ShaderStorageBuffer>>,
-) {
-    let num_particles = 1024;
-
-    let positions_data = vec![
-        ParticlePosition { pos: Vec3::ZERO };
-        num_particles
-    ];
-
-    let positions = storage_buffers.add(
-        ShaderStorageBuffer::from(&positions_data)
-    );
-
-    commands.insert_resource(SharedComputeBuffers {
-        positions,
-    });
-}
-
+const GRAVITY : f32 = 0.42;
 
 pub fn update_params(
     time: Res<Time>,
@@ -51,7 +25,7 @@ pub fn update_params(
 ) {
     let params = SimParams {
         num_particles: 1024,
-        gravity: -9.81,
+        gravity: GRAVITY,
         delta_time: time.delta_secs(),
         _pad: 0.0,
     };
@@ -75,7 +49,10 @@ pub fn init_compute(
     // -----------------------------------------
     // Positions Buffer
     // -----------------------------------------
-    let positions_data = vec![[0.0f32; 3]; num_particles as usize];
+    let positions_data = vec![
+        ParticlePosition { pos: [0.0; 3], _pad: 0.0 };
+        num_particles as usize
+    ];
 
     let positions = render_device.create_buffer_with_data(
         &BufferInitDescriptor {
@@ -88,7 +65,7 @@ pub fn init_compute(
     // -----------------------------------------
     // Velocities Buffer
     // -----------------------------------------
-    let velocities_data = vec![[0.0f32; 3]; num_particles as usize];
+    let velocities_data = vec![[0.0f32; 4]; num_particles as usize];
 
     let velocities = render_device.create_buffer_with_data(
         &BufferInitDescriptor {
@@ -103,8 +80,8 @@ pub fn init_compute(
     // -----------------------------------------
     let params = SimParams {
         num_particles,
-        gravity: -9.81,
-        delta_time: 1.0 / 60.0,
+        gravity: GRAVITY,
+        delta_time: 0.0,
         _pad: 0.0,
     };
 
@@ -243,7 +220,7 @@ pub fn run_compute(
             encoder.begin_compute_pass(&ComputePassDescriptor::default());
 
         pass.set_pipeline(pipeline);
-        pass.set_bind_group(0, &compute_bind_group.0, &[]);
+        pass.set_bind_group(3, &compute_bind_group.0, &[]);
         pass.dispatch_workgroups(16, 1, 1);
     }
 
@@ -273,11 +250,17 @@ pub fn read_positions(
 
     let data = slice.get_mapped_range();
 
-    let positions: &[[f32; 3]] =
+    let positions: &[ParticlePosition] =
         bytemuck::cast_slice(&data);
 
     // DEBUG
-    println!("p0 = {:?}", positions[0]);
+    println!(
+        "p0 = {:?}, p1 = {:?}, p2 = {:?}, p10 = {:?}",
+        positions[0].pos,
+        positions[1].pos,
+        positions[2].pos,
+        positions[10].pos,
+    );
 
     drop(data);
     readback.buffer.unmap();
