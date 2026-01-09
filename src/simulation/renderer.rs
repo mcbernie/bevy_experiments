@@ -1,135 +1,80 @@
 use bevy::{
-    asset::RenderAssetUsages, 
-    mesh::PrimitiveTopology, 
     prelude::*, 
     render::{
-        render_resource::ShaderType, 
         storage::ShaderStorageBuffer
     }
 };
 
-use crate::simulation::structs::ParticlePosition;
+use crate::simulation::{components::{SimulationBuffers, WaterSimulation}};
 
 use super::{
     material::ParticleMaterial, 
-    structs::SharedComputeBuffers
 };
 
-fn create_particle_mesh(
-    mut meshes: ResMut<Assets<Mesh>>,
-    num_particles: usize,
-) -> Handle<Mesh> {
-    let mut mesh = Mesh::new(
-        PrimitiveTopology::PointList,
-        RenderAssetUsages::default(),
-    );
-
-    // Dummy-Positionen, werden im Shader ignoriert
-    mesh.insert_attribute(
-        Mesh::ATTRIBUTE_POSITION,
-        vec![[0.0, 0.0, 0.0]; num_particles],
-    );
-    mesh.insert_attribute(
-        Mesh::ATTRIBUTE_NORMAL,
-        vec![[0.0, 1.0, 0.0]; num_particles],
-    );
-
-    meshes.add(mesh)
-}
-
-fn create_point_mesh(
-    mut meshes: ResMut<Assets<Mesh>>,
-    num_particles: usize,
-) -> Handle<Mesh> {
-
-    let mut mesh = Mesh::new(
-        PrimitiveTopology::PointList,
-        RenderAssetUsages::default(),
-    );
-
-    // Dummy-Vertices, werden ignoriert
-    mesh.insert_attribute(
-        Mesh::ATTRIBUTE_POSITION,
-        vec![[0.0, 0.0, 0.0]; num_particles],
-    );
-
-    meshes.add(mesh)
-}
-
-fn create_billboard_mesh(
-    meshes: &mut Assets<Mesh>,
-    num_particles: usize,
-) -> Handle<Mesh> {
-
-    let mut positions = Vec::with_capacity(num_particles * 6);
-
-    for _ in 0..num_particles {
-        // Dummy-Vertices – werden im Shader ersetzt
-        positions.extend_from_slice(&[
-            [0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0],
-        ]);
-    }
-
-    let mut mesh = Mesh::new(
-        PrimitiveTopology::TriangleList,
-        RenderAssetUsages::default(),
-    );
-
-    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
-
-    meshes.add(mesh)
-}
-
-
-
-pub fn init_compute_buffers(
+pub fn spawn_simulation_once(
     mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ParticleMaterial>>,
     mut storage_buffers: ResMut<Assets<ShaderStorageBuffer>>,
 ) {
-    let num_particles = 1024;
+    const PARTICLE_COUNT: usize = 1024;
 
+    info!("Spawning particle simulation.");
 
-    let positions_data = vec![
-        ParticlePosition { pos: [0.0; 3], _pad: 0.0 };
-        num_particles
-    ];
+    use rand::Rng;
+
+    let mut rng = rand::thread_rng();
+
+    let mut pos_data = Vec::with_capacity(PARTICLE_COUNT);
+    let mut vel_data = Vec::with_capacity(PARTICLE_COUNT);
+
+    for _ in 0..PARTICLE_COUNT {
+        let x = rng.gen_range(-0.8..0.8);
+        let y = rng.gen_range(-0.8..0.8);
+
+        pos_data.push([x, y, 0.0, 1.0]);
+        vel_data.push([0.0, 0.0, 0.0, 0.0]);
+    }
 
     let positions = storage_buffers.add(
-        ShaderStorageBuffer::from(
-            &positions_data,
-        )
+        ShaderStorageBuffer::from(pos_data)
     );
 
-    info!("Initialized compute buffers.");
-    commands.insert_resource(SharedComputeBuffers {
-        positions,
-    });
-}
+    let velocities = storage_buffers.add(
+        ShaderStorageBuffer::from(vel_data)
+    );
 
-pub fn spawn_particles(
-    mut commands: Commands,
-    mut materials: ResMut<Assets<ParticleMaterial>>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    compute: Res<SharedComputeBuffers>,
-) {
-    
-    let mesh = create_billboard_mesh(&mut meshes, 1024);
-    //let mesh = create_particle_mesh(meshes, 1024);
 
-    let material = materials.add(ParticleMaterial {
-        positions: compute.positions.clone(),
-    });
+    // --- Dummy Mesh (Vertex Index wird benutzt) ---
+    let mesh = meshes.add(Rectangle::new(0.5, 0.5));
 
-    info!("Spawning particles.");   
-    commands.spawn((
-        Mesh3d(mesh),
-        MeshMaterial3d(material),
+    // --- Material liest direkt aus dem Compute-Buffer ---
+    let material = materials.add(
+        ParticleMaterial {
+            positions: positions.clone(),
+        }
+    );
+
+    // --- Entity ---
+    let mut childs = commands.spawn((
+        WaterSimulation {
+            particle_count: PARTICLE_COUNT as u32,
+        },
+        SimulationBuffers {
+            positions,
+            velocities,
+        },
         Transform::IDENTITY,
         GlobalTransform::IDENTITY,
     ));
+    for p in 0..PARTICLE_COUNT {
+        childs.with_children(|parent| {
+            parent.spawn((
+                Mesh3d(mesh.clone()),
+                MeshMaterial3d(material.clone()),
+                Name::new(format!("Particle {}", p)),
+                InheritedVisibility::VISIBLE,
+            ));
+        });
+    }
 }

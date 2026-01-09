@@ -2,27 +2,28 @@
 @group(0) @binding(0)
 var<uniform> view_proj: mat4x4<f32>;
 
-struct ParticlePosition {
-    pos: vec3<f32>,
-    _pad: f32,
-};
 
 @group(#{MATERIAL_BIND_GROUP}) @binding(0)
-var<storage, read> positions: array<ParticlePosition>;
+var<storage, read> positions: array<vec4<f32>>;
 
 struct VSOut {
     @builtin(position) pos: vec4<f32>,
 };
 
 @vertex
-fn vertex(@builtin(vertex_index) index: u32) -> VSOut {
+fn vertex(
+    @builtin(vertex_index) vertex_index: u32,
+    @builtin(instance_index) instance_index: u32,
+) -> VSOut {
     var out: VSOut;
 
-    // 6 Vertices = 1 Quad
-    let particle_index = index / 6u;
-    let corner = index % 6u;
+     if (instance_index >= arrayLength(&positions)) {
+        out.pos = vec4<f32>(0.0);
+        return out;
+    }
 
-    let center = positions[particle_index].pos;
+    // Partikelposition aus Compute-Buffer
+    let center = positions[instance_index].xyz;
 
     // Quad-Corners
     let offsets = array<vec2<f32>, 6>(
@@ -34,8 +35,8 @@ fn vertex(@builtin(vertex_index) index: u32) -> VSOut {
         vec2(-1.0,  1.0),
     );
 
-    let size = 0.55;
-    let o = offsets[corner] * size;
+    let size = 0.05; // MUSS zur Physik passen
+    let o = offsets[vertex_index % 6u] * size;
 
     let world = vec4<f32>(
         center.x + o.x,

@@ -10,6 +10,7 @@ bevy = { version = "0.17.3", features = ["dynamic_linking"] }
 ron = "0.12.0"
 serde = { version = "1.0.228", features = ["derive"] }
 bytemuck = "1.24.0"
+rand = "0.9.2"
 
 # Enable a small amount of optimization in the dev profile.
 [profile.dev]

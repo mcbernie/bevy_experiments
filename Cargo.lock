@@ -678,6 +678,7 @@ dependencies = [
  "bevy",
  "bytemuck",
  "noise",
+ "rand 0.9.2",
  "ron 0.12.0",
  "serde",
 ]
