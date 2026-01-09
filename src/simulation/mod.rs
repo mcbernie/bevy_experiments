@@ -1,4 +1,3 @@
-mod pipelines;
 mod plugin;
 mod structs;
 pub mod material;
