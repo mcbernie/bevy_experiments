@@ -22,7 +22,7 @@ fn main() {
         .add_plugins((
             DefaultPlugins,
             MaterialPlugin::<ExtendedMaterial<StandardMaterial,base::CheckerMaterial>>::default(),
-            MaterialPlugin::<ParticleMaterial>::default(),
+            MaterialPlugin::<ExtendedMaterial<StandardMaterial, ParticleMaterial>>::default(),
             WireframePlugin::default(),
         ))
         .init_state::<AppState>()

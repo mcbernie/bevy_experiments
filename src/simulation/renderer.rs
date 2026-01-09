@@ -1,8 +1,5 @@
 use bevy::{
-    prelude::*, 
-    render::{
-        storage::ShaderStorageBuffer
-    }
+    pbr::ExtendedMaterial, prelude::*, render::storage::ShaderStorageBuffer
 };
 
 use crate::simulation::{components::{SimulationBuffers, WaterSimulation}};
@@ -14,7 +11,7 @@ use super::{
 pub fn spawn_simulation_once(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ParticleMaterial>>,
+    mut materials: ResMut<Assets<ExtendedMaterial<StandardMaterial, ParticleMaterial>>>,
     mut storage_buffers: ResMut<Assets<ShaderStorageBuffer>>,
 ) {
     const PARTICLE_COUNT: usize = 1024;
@@ -31,8 +28,9 @@ pub fn spawn_simulation_once(
     for _ in 0..PARTICLE_COUNT {
         let x = rng.gen_range(-0.8..0.8);
         let y = rng.gen_range(-0.8..0.8);
+        let z = rng.gen_range(-0.8..0.8);
 
-        pos_data.push([x, y, 0.0, 1.0]);
+        pos_data.push([x, y, z, 1.0]);
         vel_data.push([0.0, 0.0, 0.0, 0.0]);
     }
 
@@ -46,14 +44,17 @@ pub fn spawn_simulation_once(
 
 
     // --- Dummy Mesh (Vertex Index wird benutzt) ---
-    let mesh = meshes.add(Rectangle::new(0.5, 0.5));
+    let mesh = meshes.add(Sphere::new(0.2));
 
     // --- Material liest direkt aus dem Compute-Buffer ---
     let material = materials.add(
-        ParticleMaterial {
-            positions: positions.clone(),
-        }
-    );
+            ExtendedMaterial {
+                base: StandardMaterial::default(),
+                extension: ParticleMaterial {
+                    positions: positions.clone(),
+                }
+            }
+        );
 
     // --- Entity ---
     let mut childs = commands.spawn((
@@ -66,6 +67,7 @@ pub fn spawn_simulation_once(
         },
         Transform::IDENTITY,
         GlobalTransform::IDENTITY,
+        InheritedVisibility::VISIBLE,
     ));
     for p in 0..PARTICLE_COUNT {
         childs.with_children(|parent| {

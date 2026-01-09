@@ -14,8 +14,8 @@ const GRAVITY: vec3<f32> = vec3<f32>(0.0, -9.81, 0.0);
 const RADIUS: f32 = 0.05;
 const RESTITUTION: f32 = 0.9;
 
-const MIN_BOUND: vec3<f32> = vec3<f32>(-10.0 + RADIUS, -10.0 + RADIUS, 0.0);
-const MAX_BOUND: vec3<f32> = vec3<f32>( 10.0 - RADIUS,  10.0 - RADIUS, 0.0);
+const MIN_BOUND: vec3<f32> = vec3<f32>(0.0 + RADIUS, 0.0 + RADIUS, RADIUS);
+const MAX_BOUND: vec3<f32> = vec3<f32>( 10.0 - RADIUS,  10.0 - RADIUS, 10.0 - RADIUS);
 
 fn set_pos(i: u32, new_pos: vec3<f32>) {
     positions[i] = vec4<f32>(new_pos, positions[i].w);
@@ -50,7 +50,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     /* ---------------------------------
        3. World bounds + bounce
     --------------------------------- */
-    for (var axis: u32 = 0u; axis < 2u; axis++) {
+    for (var axis: u32 = 0u; axis < 3u; axis++) {
         if (positions[i][axis] < MIN_BOUND[axis]) {
             positions[i][axis] = MIN_BOUND[axis];
             velocities[i][axis] *= -RESTITUTION;

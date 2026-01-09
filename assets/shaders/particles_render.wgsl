@@ -1,55 +1,83 @@
+// ===============================
+// Imports
+// ===============================
 
-@group(0) @binding(0)
-var<uniform> view_proj: mat4x4<f32>;
+#import bevy_pbr::forward_io::VertexOutput
+
+#ifdef FORWARD_PIPELINE
+    #import bevy_pbr::mesh_view_bindings::mesh
+    #import bevy_render::view::view
+    #import bevy_pbr::mesh_functions::get_world_from_local
+#endif
 
 
-@group(#{MATERIAL_BIND_GROUP}) @binding(0)
+// ===============================
+// Compute / Instancing Buffer
+// ===============================
+
+@group(#{MATERIAL_BIND_GROUP}) @binding(101)
 var<storage, read> positions: array<vec4<f32>>;
 
-struct VSOut {
-    @builtin(position) pos: vec4<f32>,
+
+// ===============================
+// Vertex Input
+// ===============================
+
+struct VertexIn {
+    @location(0) position: vec3<f32>,
+    @location(1) normal: vec3<f32>,
+    @location(2) uv: vec2<f32>,
 };
+
+
+// ===============================
+// Vertex Shader
+// ===============================
 
 @vertex
 fn vertex(
-    @builtin(vertex_index) vertex_index: u32,
+    in: VertexIn,
     @builtin(instance_index) instance_index: u32,
-) -> VSOut {
-    var out: VSOut;
+) -> VertexOutput {
+    var out: VertexOutput;
 
-     if (instance_index >= arrayLength(&positions)) {
-        out.pos = vec4<f32>(0.0);
-        return out;
-    }
+#ifdef FORWARD_PIPELINE
+    // --------------------------------
+    // Local → World (Bevy Transform)
+    // --------------------------------
+    let world_pos_mesh =
+        get_world_from_local(vec4<f32>(in.position, 1.0));
 
-    // Partikelposition aus Compute-Buffer
-    let center = positions[instance_index].xyz;
+    // --------------------------------
+    // Compute offset (World Space)
+    // --------------------------------
+    let instance_offset =
+        vec4<f32>(positions[instance_index].xyz, 0.0);
 
-    // Quad-Corners
-    let offsets = array<vec2<f32>, 6>(
-        vec2(-1.0, -1.0),
-        vec2( 1.0, -1.0),
-        vec2( 1.0,  1.0),
-        vec2(-1.0, -1.0),
-        vec2( 1.0,  1.0),
-        vec2(-1.0,  1.0),
-    );
+    let world_pos = world_pos_mesh + instance_offset;
 
-    let size = 0.05; // MUSS zur Physik passen
-    let o = offsets[vertex_index % 6u] * size;
+    // --------------------------------
+    // Outputs für Bevy-PBR
+    // --------------------------------
+    out.world_position = world_pos;
 
-    let world = vec4<f32>(
-        center.x + o.x,
-        center.y + o.y,
-        center.z,
-        1.0
-    );
+    out.world_normal =
+        normalize(
+            (mesh.normal_from_local * vec4<f32>(in.normal, 0.0)).xyz
+        );
 
-    out.pos = view_proj * world;
+    out.uv = in.uv;
+
+    // Clip Space
+    out.position = view.view_proj * world_pos;
+
+#else
+    // --------------------------------
+    // Fallback für Shadow / Prepass /
+    // Depth / andere Varianten
+    // --------------------------------
+    out.position = vec4<f32>(0.0);
+#endif
+
     return out;
-}
-
-@fragment
-fn fragment() -> @location(0) vec4<f32> {
-    return vec4<f32>(1.0, 0.0, 0.0, 1.0);
 }
