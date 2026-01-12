@@ -1,4 +1,4 @@
-use bevy::{color::palettes::css::WHITE, pbr::{ExtendedMaterial, wireframe::{WireframeConfig, WireframePlugin}}, prelude::*};
+use bevy::{color::palettes::css::WHITE, dev_tools::fps_overlay::{FpsOverlayConfig, FpsOverlayPlugin, FrameTimeGraphConfig}, pbr::{ExtendedMaterial, wireframe::{WireframeConfig, WireframePlugin}}, prelude::*};
 
 use crate::{
     app_state::{
@@ -21,6 +21,30 @@ fn main() {
     App::new()
         .add_plugins((
             DefaultPlugins,
+            FpsOverlayPlugin {
+                config: FpsOverlayConfig {
+                    text_config: TextFont {
+                        // Here we define size of our overlay
+                        font_size: 16.0,
+                        // If we want, we can use a custom font
+                        font: default(),
+                        // We could also disable font smoothing,
+                        ..default()
+                    },
+                    
+                    text_color: Color::WHITE,
+                    // We can also set the refresh interval for the FPS counter
+                    refresh_interval: core::time::Duration::from_millis(100),
+                    enabled: true,
+                    frame_time_graph_config: FrameTimeGraphConfig {
+                        enabled: true,
+                        // The minimum acceptable fps
+                        min_fps: 30.0,
+                        // The target fps
+                        target_fps: 144.0,
+                    },
+                },
+            },
             MaterialPlugin::<ExtendedMaterial<StandardMaterial,base::CheckerMaterial>>::default(),
             MaterialPlugin::<ExtendedMaterial<StandardMaterial, ParticleMaterial>>::default(),
             WireframePlugin::default(),

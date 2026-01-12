@@ -1,5 +1,5 @@
 use bevy::{
-    camera::visibility::NoFrustumCulling, pbr::ExtendedMaterial, prelude::*, render::storage::ShaderStorageBuffer
+    camera::visibility::NoFrustumCulling, pbr::{ExtendedMaterial, wireframe::NoWireframe}, prelude::*, render::storage::ShaderStorageBuffer
 };
 
 use crate::simulation::{components::{SimulationBuffers, WaterSimulation}};
@@ -56,6 +56,7 @@ pub fn spawn_simulation_once(
                 },
                 extension: ParticleMaterial {
                     positions: positions.clone(),
+                    velocities: velocities.clone(),
                 }
             }
         );
@@ -73,13 +74,11 @@ pub fn spawn_simulation_once(
         GlobalTransform::IDENTITY,
         InheritedVisibility::VISIBLE,
     )).with_children(|parent| {
-        for p in 0..PARTICLE_COUNT {
-            let pos = pos_data.clone()[p];
-
+        for _ in 0..PARTICLE_COUNT {
             parent.spawn((
+                NoWireframe,
                 Mesh3d(mesh.clone()),
                 MeshMaterial3d(material.clone()),
-                Transform::from_translation(Vec3::new(pos[0], pos[1], pos[2])),
                 NoFrustumCulling,
             ));
         }
