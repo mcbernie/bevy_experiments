@@ -2,7 +2,7 @@ use bevy::{
     camera::visibility::NoFrustumCulling, pbr::{ExtendedMaterial, wireframe::NoWireframe}, prelude::*, render::storage::ShaderStorageBuffer
 };
 
-use crate::simulation::{components::{SimulationBuffers, WaterSimulation}};
+use crate::{PARTICLE_COUNT, simulation::{assets::SimulationParams, components::{SimulationBuffers, WaterSimulation}}};
 
 use super::{
     material::ParticleMaterial, 
@@ -15,7 +15,6 @@ pub fn spawn_simulation_once(
     //mut materials: ResMut<Assets<StandardMaterial>>,
     mut storage_buffers: ResMut<Assets<ShaderStorageBuffer>>,
 ) {
-    const PARTICLE_COUNT: usize = 6400;
 
     info!("Spawning particle simulation.");
 
@@ -23,8 +22,8 @@ pub fn spawn_simulation_once(
 
     let mut rng = rand::rng();
 
-    let mut pos_data = Vec::with_capacity(PARTICLE_COUNT);
-    let mut vel_data = Vec::with_capacity(PARTICLE_COUNT);
+    let mut pos_data = Vec::with_capacity(PARTICLE_COUNT as usize);
+    let mut vel_data = Vec::with_capacity(PARTICLE_COUNT as usize);
 
     for _ in 0..PARTICLE_COUNT {
         let x = rng.random_range(-0.8..0.8);
@@ -64,7 +63,7 @@ pub fn spawn_simulation_once(
     // --- Entity ---
     commands.spawn((
         WaterSimulation {
-            particle_count: PARTICLE_COUNT as u32,
+            particle_count: PARTICLE_COUNT,
         },
         SimulationBuffers {
             positions,

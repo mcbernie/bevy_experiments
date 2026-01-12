@@ -10,6 +10,8 @@ use crate::{
     base::create_plane_mesh, simulation::material::ParticleMaterial
 };
 
+pub const PARTICLE_COUNT: u32 = 20000;
+
 mod app_state;
 mod config;
 mod camera;
@@ -31,7 +33,7 @@ fn main() {
                         // We could also disable font smoothing,
                         ..default()
                     },
-                    
+
                     text_color: Color::WHITE,
                     // We can also set the refresh interval for the FPS counter
                     refresh_interval: core::time::Duration::from_millis(100),

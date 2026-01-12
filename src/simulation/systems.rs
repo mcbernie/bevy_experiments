@@ -2,12 +2,15 @@
 use bevy::prelude::*;
 
 use bevy::render::render_asset::RenderAssets;
+use bevy::render::render_resource::binding_types::uniform_buffer;
 use bevy::render::render_resource::{
     BindGroupEntry, BindGroupLayout, BindGroupLayoutEntry, BindingType, BufferBindingType, CachedComputePipelineId, CommandEncoderDescriptor, ComputePassDescriptor, ComputePipelineDescriptor, PipelineCache, PushConstantRange, ShaderStages, UniformBuffer
 };
 use bevy::render::renderer::{RenderDevice, RenderQueue};
 use bevy::render::storage::GpuShaderStorageBuffer;
 
+use crate::PARTICLE_COUNT;
+use crate::simulation::assets::SimulationParams;
 use crate::simulation::components::{SimulationBuffers, PreparedSimulationBindGroup};
 
 
@@ -16,6 +19,39 @@ pub struct SimulationComputePipeline {
     pub pipeline: CachedComputePipelineId,
     pub layout: BindGroupLayout,
 }
+
+#[derive(Resource)]
+pub struct SimulationUniform {
+    pub buffer: Option<UniformBuffer<SimulationParams>>,
+}
+
+pub fn update_simulation_uniform(
+    mut uniform: ResMut<SimulationUniform>,
+    params: Option<Res<SimulationParams>>,
+    render_device: Res<RenderDevice>,
+    render_queue: Res<RenderQueue>,
+) {
+    if params.is_none() {
+        return;
+    }
+    let params = params.unwrap();
+    if uniform.buffer.is_none() || params.is_changed() {
+
+        if let Some(buffer) = uniform.buffer.as_mut() {
+            buffer.set(params.clone());
+            buffer.write_buffer(&render_device, &render_queue);
+        } else {
+            warn!("Creating SimulationUniform buffer.");    
+            let mut buffer = UniformBuffer::from(params.clone());
+            buffer.write_buffer(&render_device, &render_queue);
+            uniform.buffer = Some(buffer);
+        }
+    }
+
+}
+
+
+
 
 // RenderApp - Initialisiere die Compute Pipeline
 pub fn init_compute_pipeline(
@@ -51,6 +87,7 @@ pub fn init_compute_pipeline(
                 },
                 count: None,
             },
+            uniform_buffer::<SimulationParams>(false).build(2, ShaderStages::COMPUTE)
         ],
     );
 
@@ -87,13 +124,29 @@ pub fn prepare_simulation_bind_groups(
     mut commands: Commands,
     pipeline: Res<SimulationComputePipeline>,
     render_device: Res<RenderDevice>,
+    settings_uniform: Res<SimulationUniform>,
     storage_buffers: Res<RenderAssets<GpuShaderStorageBuffer>>, // <- Da legen wir den StorageBuffer ab
+    queue: Res<RenderQueue>,
     // nur die Entities die noch keine PreparedSimulationBindGroup haben
     query: Query<(Entity, &SimulationBuffers), Without<PreparedSimulationBindGroup>>,
 ) {
+    if query.is_empty() {
+        return;
+    }
+    if settings_uniform.buffer.is_none() {
+        return;
+    }
+
+    let uniform = settings_uniform
+        .buffer
+        .as_ref()
+        .expect("SimulationUniform not initialized yet");
+
+
     for (entity, buffers) in &query {
         let positions = storage_buffers.get(&buffers.positions).unwrap();
         let velocities = storage_buffers.get(&buffers.velocities).unwrap();
+
 
         let bind_group = render_device.create_bind_group(
             "particle_compute_pipeline_bind_group",
@@ -106,7 +159,11 @@ pub fn prepare_simulation_bind_groups(
                 BindGroupEntry {
                     binding: 1,
                     resource: velocities.buffer.as_entire_binding(),
-                }
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: uniform.buffer().unwrap().as_entire_binding(),
+                },
             ],
         );
 
@@ -154,7 +211,7 @@ pub fn run_compute(
 
             // delta time pushen
             pass.set_push_constants(0, bytemuck::bytes_of(&delta_time));
-            pass.dispatch_workgroups(6400 / 256, 1, 1);
+            pass.dispatch_workgroups(PARTICLE_COUNT / 256, 1, 1);
         }
     }
 
