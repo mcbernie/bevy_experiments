@@ -1,5 +1,5 @@
 
-use bevy::{prelude::*, render::{Render, RenderApp, RenderStartup, RenderSystems, extract_component::ExtractComponentPlugin}};
+use bevy::{prelude::*, render::{Render, RenderApp, RenderStartup, RenderSystems, extract_component::ExtractComponentPlugin, gpu_readback::{Readback, ReadbackComplete}}};
 use crate::simulation::{components::SimulationBuffers, renderer::spawn_simulation_once};
 
 use super::systems::{init_compute_pipeline, prepare_simulation_bind_groups, run_compute};

@@ -1,58 +1,63 @@
-#import bevy_pbr::forward_io::VertexOutput
-#import bevy_pbr::mesh_functions::{
-    mesh_position_local_to_world,
-    mesh_position_local_to_clip,
-    mesh_normal_local_to_world
-}
-#import bevy_pbr::mesh_view_bindings::{
-    model,
-    normal_matrix
+#import bevy_pbr::{
+    mesh_bindings::mesh,
+    mesh_functions,
+    skinning,
+    morph::morph,
+    forward_io::{Vertex, VertexOutput, FragmentOutput},
+    pbr_fragment::pbr_input_from_standard_material,
+    view_transformations::position_world_to_clip,
 }
 
-@group(#{MATERIAL_BIND_GROUP}) @binding(101)
+@group(#{MATERIAL_BIND_GROUP}) @binding(100)
 var<storage, read> positions: array<vec4<f32>>;
 
-struct VertexIn {
-    @location(0) position: vec3<f32>,
-    @location(1) normal: vec3<f32>,
-#ifdef VERTEX_UVS_A
-    @location(2) uv: vec2<f32>,
-#endif
-};
+fn apply_instance_offset(
+    vertex: Vertex,
+) -> mat4x4<f32> {
+    let offset = positions[vertex.instance_index].xyz;
+
+    var world_from_local =
+        mesh_functions::get_world_from_local(vertex.instance_index);
+
+    world_from_local[3] = vec4<f32>(offset, 0.0);
+
+    return world_from_local;
+}
+
 
 @vertex
 fn vertex(
-    in: VertexIn,
-    @builtin(instance_index) instance_index: u32,
+    vertex_no_morph: Vertex,
 ) -> VertexOutput {
     var out: VertexOutput;
 
-    let local_pos = vec4<f32>(in.position, 1.0);
+    let offset = positions[vertex_no_morph.instance_index].xyz;
+    var vertex = vertex_no_morph;
+    vertex.position = vertex.position + offset;
 
-    // 1. Local → World (Bevy Model Matrix)
-    let world_pos =
-        mesh_position_local_to_world(local_pos, model);
+    let world_from_local = apply_instance_offset(vertex);
 
-    // 2. Compute Offset (World Space)
-    let offset =
-        vec4<f32>(positions[instance_index].xyz, 0.0);
+    out.world_normal = mesh_functions::mesh_normal_local_to_world(
+        vertex.normal,
+        0,
+    );
 
-    let final_world_pos = world_pos + offset;
-
-    // 3. Pflichtfelder für PBR
-    out.world_position = final_world_pos;
-
-    out.world_normal =
-        normalize(mesh_normal_local_to_world(in.normal, normal_matrix));
-
-#ifdef VERTEX_UVS_A
-    out.uv = in.uv;
-#endif
-
-    // 4. Clip Space
-    out.position =
-        mesh_position_local_to_clip(local_pos, model) +
-        vec4<f32>(offset.xyz, 0.0);
+    out.world_position = mesh_functions::mesh_position_local_to_world(world_from_local, vec4<f32>(vertex.position, 1.0));
+    out.position = position_world_to_clip(out.world_position.xyz);
+    out.uv = vertex.uv;
+    out.instance_index = vertex.instance_index;
 
     return out;
+}
+
+@fragment
+fn fragment(
+    in: VertexOutput,
+    @builtin(front_facing) is_front: bool
+) -> @location(0) vec4<f32> {
+
+    var pbr_input = pbr_input_from_standard_material(in, is_front);
+    var pos = positions[in.instance_index].xyz;
+    return vec4<f32>(pos, 1.0);
+    //return vec4<f32>(0.1,0.8,0.0, 1.0);
 }

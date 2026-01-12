@@ -1,5 +1,5 @@
 mod plugin;
-mod structs;
+//mod structs;
 pub mod material;
 mod renderer;
 mod components;

@@ -1,5 +1,5 @@
 use bevy::{
-    pbr::ExtendedMaterial, prelude::*, render::storage::ShaderStorageBuffer
+    camera::visibility::NoFrustumCulling, pbr::ExtendedMaterial, prelude::*, render::storage::ShaderStorageBuffer
 };
 
 use crate::simulation::{components::{SimulationBuffers, WaterSimulation}};
@@ -12,30 +12,31 @@ pub fn spawn_simulation_once(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ExtendedMaterial<StandardMaterial, ParticleMaterial>>>,
+    //mut materials: ResMut<Assets<StandardMaterial>>,
     mut storage_buffers: ResMut<Assets<ShaderStorageBuffer>>,
 ) {
-    const PARTICLE_COUNT: usize = 1024;
+    const PARTICLE_COUNT: usize = 6400;
 
     info!("Spawning particle simulation.");
 
     use rand::Rng;
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     let mut pos_data = Vec::with_capacity(PARTICLE_COUNT);
     let mut vel_data = Vec::with_capacity(PARTICLE_COUNT);
 
     for _ in 0..PARTICLE_COUNT {
-        let x = rng.gen_range(-0.8..0.8);
-        let y = rng.gen_range(-0.8..0.8);
-        let z = rng.gen_range(-0.8..0.8);
+        let x = rng.random_range(-0.8..0.8);
+        let y = rng.random_range(-0.8..0.8);
+        let z = rng.random_range(-0.8..0.8);
 
-        pos_data.push([x, y, z, 1.0]);
+        pos_data.push([x, y, z, 0.0]);
         vel_data.push([0.0, 0.0, 0.0, 0.0]);
     }
 
     let positions = storage_buffers.add(
-        ShaderStorageBuffer::from(pos_data)
+        ShaderStorageBuffer::from(pos_data.clone())
     );
 
     let velocities = storage_buffers.add(
@@ -44,12 +45,15 @@ pub fn spawn_simulation_once(
 
 
     // --- Dummy Mesh (Vertex Index wird benutzt) ---
-    let mesh = meshes.add(Sphere::new(0.2));
+    let mesh = meshes.add(Sphere::new(0.05));
 
     // --- Material liest direkt aus dem Compute-Buffer ---
     let material = materials.add(
             ExtendedMaterial {
-                base: StandardMaterial::default(),
+                base: StandardMaterial {
+                    base_color: Color::srgba(0.2, 0.7, 1.0, 1.0),
+                    ..Default::default()
+                },
                 extension: ParticleMaterial {
                     positions: positions.clone(),
                 }
@@ -57,7 +61,7 @@ pub fn spawn_simulation_once(
         );
 
     // --- Entity ---
-    let mut childs = commands.spawn((
+    commands.spawn((
         WaterSimulation {
             particle_count: PARTICLE_COUNT as u32,
         },
@@ -68,15 +72,16 @@ pub fn spawn_simulation_once(
         Transform::IDENTITY,
         GlobalTransform::IDENTITY,
         InheritedVisibility::VISIBLE,
-    ));
-    for p in 0..PARTICLE_COUNT {
-        childs.with_children(|parent| {
+    )).with_children(|parent| {
+        for p in 0..PARTICLE_COUNT {
+            let pos = pos_data.clone()[p];
+
             parent.spawn((
                 Mesh3d(mesh.clone()),
                 MeshMaterial3d(material.clone()),
-                Name::new(format!("Particle {}", p)),
-                InheritedVisibility::VISIBLE,
+                Transform::from_translation(Vec3::new(pos[0], pos[1], pos[2])),
+                NoFrustumCulling,
             ));
-        });
-    }
+        }
+    });
 }

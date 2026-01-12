@@ -10,6 +10,7 @@ use bevy::render::storage::GpuShaderStorageBuffer;
 
 use crate::simulation::components::{SimulationBuffers, PreparedSimulationBindGroup};
 
+
 #[derive(Resource)]
 pub struct SimulationComputePipeline {
     pub pipeline: CachedComputePipelineId,
@@ -153,7 +154,7 @@ pub fn run_compute(
 
             // delta time pushen
             pass.set_push_constants(0, bytemuck::bytes_of(&delta_time));
-            pass.dispatch_workgroups(16, 1, 1);
+            pass.dispatch_workgroups(640, 1, 1);
         }
     }
 
