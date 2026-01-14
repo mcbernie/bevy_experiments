@@ -17,7 +17,6 @@ pub fn spawn_simulation_once(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ParticleMaterial>>,
-    //mut materials: ResMut<Assets<StandardMaterial>>,
     mut storage_buffers: ResMut<Assets<ShaderStorageBuffer>>,
 ) {
 
@@ -47,11 +46,17 @@ pub fn spawn_simulation_once(
         ShaderStorageBuffer::from(vel_data)
     );
 
+    let spk_buffer = ShaderStorageBuffer::from(vec![0u32; PARTICLE_COUNT as usize]);
+
+    let spatial_keys = storage_buffers.add(
+        spk_buffer
+    );
+
     let vertex_count = PARTICLE_COUNT as usize * 6;
     let v_positions = vec![[0.0, 0.0, 0.0]; vertex_count];
     let v_uvs = vec![[0.0, 0.0]; vertex_count];
 
-    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::all());
+    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::RENDER_WORLD);
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, v_positions);
     mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, v_uvs);
 
@@ -72,6 +77,7 @@ pub fn spawn_simulation_once(
         SimulationBuffers {
             positions,
             velocities,
+            spatial_keys,
         },
         Transform::IDENTITY,
         GlobalTransform::IDENTITY,

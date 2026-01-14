@@ -22,7 +22,7 @@ use crate::{
     base::create_plane_mesh, simulation::material::ParticleMaterial
 };
 
-pub const PARTICLE_COUNT: u32 = 50000;
+pub const PARTICLE_COUNT: u32 = 2000;
 
 mod app_state;
 mod config;

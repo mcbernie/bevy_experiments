@@ -9,6 +9,8 @@ use bevy::render::{
 pub struct SimulationParams {
     pub box_size: f32,
     pub gravity: f32,
+    pub cell_size: f32,
+    pub _pad: f32,
 }
 
 impl Default for SimulationParams {
@@ -16,6 +18,8 @@ impl Default for SimulationParams {
         SimulationParams {
             box_size: 3.0,
             gravity: -9.81,
+            cell_size: 0.1,
+            _pad: 0.0,
         }
     }
 }

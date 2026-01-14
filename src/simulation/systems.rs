@@ -33,6 +33,8 @@ pub struct SimulationUniform {
     pub buffer: Option<UniformBuffer<SimulationParams>>,
 }
 
+/// Update the simulation uniform buffer if parameters have changed
+/// which represents the simulation parameters like gravity, box size, etc.
 pub fn update_simulation_uniform(
     mut uniform: ResMut<SimulationUniform>,
     params: Option<Res<SimulationParams>>,
@@ -49,7 +51,6 @@ pub fn update_simulation_uniform(
             buffer.set(params.clone());
             buffer.write_buffer(&render_device, &render_queue);
         } else {
-            warn!("Creating SimulationUniform buffer.");    
             let mut buffer = UniformBuffer::from(params.clone());
             buffer.write_buffer(&render_device, &render_queue);
             uniform.buffer = Some(buffer);
@@ -58,10 +59,7 @@ pub fn update_simulation_uniform(
 
 }
 
-
-
-
-// RenderApp - Initialisiere die Compute Pipeline
+/// init the compute pipeline for the simulation
 pub fn init_compute_pipeline(
     mut commands: Commands,
     pipeline_cache: Res<PipelineCache>,
@@ -77,6 +75,17 @@ pub fn init_compute_pipeline(
         &BindGroupLayoutEntries::sequential(
             ShaderStages::COMPUTE,
             [
+                // will replaced by i think `storage_buffer` method. but works for now
+                BindGroupLayoutEntry {
+                    binding: u32::MAX,
+                    visibility: ShaderStages::COMPUTE,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
                 BindGroupLayoutEntry {
                     binding: u32::MAX,
                     visibility: ShaderStages::COMPUTE,
@@ -98,24 +107,14 @@ pub fn init_compute_pipeline(
                     count: None,
                 },
                 uniform_buffer::<SimulationParams>(false).build(u32::MAX, ShaderStages::COMPUTE),
-                BindGroupLayoutEntry {
-                    binding: u32::MAX,
-                    visibility: ShaderStages::COMPUTE,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Storage { read_only: false },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
             ],
         )
     );
 
-
+    // my first compute pipeline, where all the strange stuff happens
     let main_compute_pipeline = pipeline_cache.queue_compute_pipeline(
         ComputePipelineDescriptor {
-            label: Some("particle_compute_pipeline".into()),
+            label: Some("simulation_compute_pipeline".into()),
             layout: vec![bind_group_layout.clone()],
             push_constant_ranges: vec![
                 PushConstantRange {
@@ -129,10 +128,12 @@ pub fn init_compute_pipeline(
         }
     );
 
+    // the next big thing: spatial hash pipeline
     let spatial_hash_pipeline = pipeline_cache.queue_compute_pipeline(
         ComputePipelineDescriptor {
-            label: Some("spatial_hash_pipeline_pipeline".into()),
+            label: Some("spatial_hash_pipeline".into()),
             layout: vec![bind_group_layout.clone()],
+            // doenst need push constants
             push_constant_ranges: vec![
                 PushConstantRange {
                     stages: ShaderStages::COMPUTE,
@@ -178,12 +179,13 @@ pub fn prepare_simulation_bind_groups(
         .as_ref()
         .expect("SimulationUniform not initialized yet");
 
-
     for (entity, buffers) in &query {
         let positions = storage_buffers.get(&buffers.positions).unwrap();
         let velocities = storage_buffers.get(&buffers.velocities).unwrap();
+        let spatial_keys = storage_buffers.get(&buffers.spatial_keys).unwrap();
 
 
+        // we need to create this for each pipeline...?
         let bind_group = render_device.create_bind_group(
             "particle_compute_pipeline_bind_group",
             &pipeline_cache.get_bind_group_layout(&pipeline.layout),
@@ -198,6 +200,10 @@ pub fn prepare_simulation_bind_groups(
                 },
                 BindGroupEntry {
                     binding: 2,
+                    resource: spatial_keys.buffer.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 3,
                     resource: uniform.buffer().unwrap().as_entire_binding(),
                 },
             ],
@@ -209,13 +215,12 @@ pub fn prepare_simulation_bind_groups(
     }
 }
 
-// ich probiere es mit einer node
-// RenderApp - Führe die Compute Pipeline aus
+// each frame, run the compute shader to update the simulation
 pub fn run_compute(
     pipeline_cache: Res<PipelineCache>,
     pipeline: Res<SimulationComputePipeline>,
-    time: Res<Time>,
-    mut sim_time: ResMut<SimulationTime>,
+    //time: Res<Time>,
+    //mut sim_time: ResMut<SimulationTime>,
     render_device: Res<RenderDevice>,
     render_queue: Res<RenderQueue>,
     query: Query<&PreparedSimulationBindGroup>,
@@ -230,11 +235,10 @@ pub fn run_compute(
         None => return, // Pipeline noch nicht bereit
     };
 
-    sim_time.accumulator += time.delta_secs();
-
-    let mut steps = 0;
-
-    while sim_time.accumulator >= FIXED_DT && steps < MAX_STEPS {
+    // this could later help to be more stable in terms of time steps
+    //sim_time.accumulator += time.delta_secs();
+    //let mut steps = 0;
+    //while sim_time.accumulator >= FIXED_DT && steps < MAX_STEPS {
         let mut encoder = render_device.create_command_encoder(
             &CommandEncoderDescriptor {
                 label: Some("simulation_compute_encoder"),
@@ -251,18 +255,18 @@ pub fn run_compute(
             );
 
             pass.set_pipeline(pipeline);
-            for bind_group in query.iter() {
-                pass.set_bind_group(0, &bind_group.bind_group, &[]);
+            for simulation_bind_groups in query.iter() {
+                pass.set_bind_group(0, &simulation_bind_groups.bind_group, &[]);
 
                 // delta time pushen
                 pass.set_push_constants(0, bytemuck::bytes_of(&FIXED_DT));
-                pass.dispatch_workgroups(PARTICLE_COUNT / 256, 1, 1);
+                pass.dispatch_workgroups((PARTICLE_COUNT + 255) / 256, 1, 1);
             }
         }
 
         render_queue.submit(Some(encoder.finish()));
 
-        sim_time.accumulator -= FIXED_DT;
-        steps += 1;
-    }
+    //    sim_time.accumulator -= FIXED_DT;
+    //    steps += 1;
+    //}
 }
