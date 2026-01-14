@@ -1,112 +1,86 @@
-#import bevy_pbr::{
-    mesh_bindings::mesh,
-    mesh_functions,
-    skinning,
-    morph::morph,
-    forward_io::{Vertex, VertexOutput, FragmentOutput},
-    pbr_fragment::pbr_input_from_standard_material,
-    pbr_functions::alpha_discard,
-    view_transformations::position_world_to_clip,
-}
+#import bevy_render::view::View
 
-#ifdef PREPASS_PIPELINE
-#import bevy_pbr::{
-    pbr_deferred_functions::deferred_output,
-}
-#else
-#import bevy_pbr::{
-    pbr_functions::{apply_pbr_lighting, main_pass_post_lighting_processing},
-}
-#endif
+const QUAD_OFFSETS: array<vec2<f32>, 6> = array<vec2<f32>, 6>(
+    vec2(-0.5, -0.5),
+    vec2( 0.5, -0.5),
+    vec2( 0.5,  0.5),
 
-@group(#{MATERIAL_BIND_GROUP}) @binding(100)
+    vec2(-0.5, -0.5),
+    vec2( 0.5,  0.5),
+    vec2(-0.5,  0.5),
+);
+
+
+@group(0) @binding(0)
+var<uniform> view: View;
+
+@group(#{MATERIAL_BIND_GROUP}) @binding(0)
 var<storage, read> positions: array<vec4<f32>>;
-
-@group(#{MATERIAL_BIND_GROUP}) @binding(101)
+@group(#{MATERIAL_BIND_GROUP}) @binding(1)
 var<storage, read> velocities: array<vec4<f32>>;
 
-fn apply_instance_offset(
-    vertex: Vertex,
-) -> mat4x4<f32> {
-    let offset = positions[vertex.instance_index].xyz;
-
-    var world_from_local =
-        mesh_functions::get_world_from_local(vertex.instance_index);
-
-    world_from_local[3] = vec4<f32>(offset, 0.0);
-
-    return world_from_local;
-}
-
+struct VertexOut {
+    @builtin(position) clip_pos: vec4<f32>,
+    @location(1) uv: vec2<f32>,          
+    @location(2) velocity: vec3<f32>,    
+};
 
 @vertex
 fn vertex(
-    vertex_no_morph: Vertex,
-) -> VertexOutput {
-    var out: VertexOutput;
+    @builtin(vertex_index) vertex_index: u32
+) -> VertexOut {
+    let particle_index = vertex_index / 6u;
+    let corner = vertex_index % 6u;
 
-    let offset = positions[vertex_no_morph.instance_index].xyz;
-    var vertex = vertex_no_morph;
-    vertex.position = vertex.position + offset;
+    let center = positions[particle_index].xyz;
+    let velocity = velocities[particle_index].xyz;
 
-    let world_from_local = apply_instance_offset(vertex);
+    let size = 0.05;
+    let offset_2d = QUAD_OFFSETS[corner] * size;
 
-    out.world_normal = mesh_functions::mesh_normal_local_to_world(
-        vertex.normal,
-        0,
-    );
+    // Kameraachsen
+    let right = normalize(view.world_from_view[0].xyz);
+    let up    = normalize(view.world_from_view[1].xyz);
 
+    let world_pos =
+        center
+        + right * offset_2d.x
+        + up    * offset_2d.y;
 
-    out.world_position = mesh_functions::mesh_position_local_to_world(world_from_local, vec4<f32>(vertex.position, 1.0));
-    out.position = position_world_to_clip(out.world_position.xyz);
-    out.uv = vertex.uv;
-    out.instance_index = vertex.instance_index;
-
+    var out: VertexOut;
+    out.uv = QUAD_OFFSETS[corner] + vec2(0.5);
+    out.velocity = velocity;
+    out.clip_pos = view.clip_from_world * vec4(world_pos, 1.0);
     return out;
 }
+
+
+struct FragmentOut {
+    @location(0) color: vec4<f32>
+};
 
 @fragment
-fn fragment(
-    in: VertexOutput,
-    @builtin(front_facing) is_front: bool,
-) -> FragmentOutput {
-    // generate a PbrInput struct from the StandardMaterial bindings
-    var pbr_input = pbr_input_from_standard_material(in, is_front);
+fn fragment(in: VertexOut) -> FragmentOut {
+    // Fake-Normal (Kugelannahme aus UV)
+    let n = normalize(vec3(in.uv * 2.0 - 1.0, 1.0));
 
-    // we can optionally modify the input before lighting and alpha_discard is applied
-    pbr_input.material.base_color.b = pbr_input.material.base_color.r;
+    // Simple Lichtannahme (von oben vorne)
+    let light_dir = normalize(vec3(0.3, 0.8, 0.4));
+    let diffuse = clamp(dot(n, light_dir), 0.0, 1.0);
 
-    // alpha discard
-    pbr_input.material.base_color = alpha_discard(pbr_input.material, pbr_input.material.base_color);
-
-#ifdef PREPASS_PIPELINE
-    // in deferred mode we can't modify anything after that, as lighting is run in a separate fullscreen shader.
-    let out = deferred_output(in, pbr_input);
-#else
-    var out: FragmentOutput;
-    // apply lighting
-    out.color = apply_pbr_lighting(pbr_input);
-
-    var velocity = velocities[in.instance_index].xyz;
-    let dir = normalize(velocity);
-    let speed = length(velocity);
-
+    // Geschwindigkeit → Farbe
+    let speed = length(in.velocity);
     let t = clamp(speed / 4.0, 0.0, 1.0);
+    let base_color = speed_to_color(t);
 
-    let color = speed_to_color(t);
-    out.color = vec4<f32>(color.r, color.g, color.b, 1.0);
-    // we can optionally modify the lit color before post-processing is applied
-    //out.color = vec4<f32>(out.color.x, out.color.y, map(pos.x,0.0, 1.0), 1.0);
-        // apply in-shader post processing (fog, alpha-premultiply, and also tonemapping, debanding if the camera is non-hdr)
-    // note this does not include fullscreen postprocessing effects like bloom.
-    out.color = main_pass_post_lighting_processing(pbr_input, out.color);
+    // Wasserartiger Look
+    let color = base_color * (0.4 + 0.6 * diffuse);
 
-    // we can optionally modify the final result here
-    //out.color = out.color * 2.0;
-#endif
-
+    var out: FragmentOut;
+    out.color = vec4(color, 0.9);
     return out;
 }
+
 
 fn speed_to_color(t: f32) -> vec3<f32> {
     let c0 = vec3<f32>(0.85, 0.95, 1.0); // weißblau (fast still)

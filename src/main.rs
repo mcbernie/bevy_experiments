@@ -1,4 +1,16 @@
-use bevy::{color::palettes::css::WHITE, dev_tools::fps_overlay::{FpsOverlayConfig, FpsOverlayPlugin, FrameTimeGraphConfig}, pbr::{ExtendedMaterial, wireframe::{WireframeConfig, WireframePlugin}}, prelude::*};
+use bevy::{
+    color::palettes::css::WHITE, 
+    dev_tools::fps_overlay::{
+        FpsOverlayConfig, 
+        FpsOverlayPlugin, 
+        FrameTimeGraphConfig
+    }, 
+    pbr::{
+        ExtendedMaterial, 
+        wireframe::{WireframeConfig, WireframePlugin}
+    }, 
+    prelude::*
+};
 
 use crate::{
     app_state::{
@@ -10,7 +22,7 @@ use crate::{
     base::create_plane_mesh, simulation::material::ParticleMaterial
 };
 
-pub const PARTICLE_COUNT: u32 = 20000;
+pub const PARTICLE_COUNT: u32 = 50000;
 
 mod app_state;
 mod config;
@@ -22,7 +34,14 @@ mod simulation;
 fn main() {
     App::new()
         .add_plugins((
-            DefaultPlugins,
+            DefaultPlugins.set(WindowPlugin {
+                primary_window: Some(Window {
+                    title: "Bevy Particle Simulation".to_string(),
+                    present_mode: bevy::window::PresentMode::Immediate,
+                    ..default()
+                }),
+                ..default()
+            }),
             FpsOverlayPlugin {
                 config: FpsOverlayConfig {
                     text_config: TextFont {
@@ -48,7 +67,7 @@ fn main() {
                 },
             },
             MaterialPlugin::<ExtendedMaterial<StandardMaterial,base::CheckerMaterial>>::default(),
-            MaterialPlugin::<ExtendedMaterial<StandardMaterial, ParticleMaterial>>::default(),
+            MaterialPlugin::<ParticleMaterial>::default(),
             WireframePlugin::default(),
         ))
         .init_state::<AppState>()

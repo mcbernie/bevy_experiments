@@ -78,7 +78,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
        4. Particle–Particle collisions
        (naiv O(n²), absichtlich simpel)
     --------------------------------- */
-    for (var j: u32 = 0u; j < arrayLength(&positions); j++) {
+    /*for (var j: u32 = 0u; j < arrayLength(&positions); j++) {
         if (j == i) {
             continue;
         }
@@ -109,5 +109,5 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
             }
         }
 
-    }
+    }*/
 }

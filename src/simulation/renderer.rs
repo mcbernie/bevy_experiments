@@ -1,5 +1,5 @@
 use bevy::{
-    camera::visibility::NoFrustumCulling, pbr::{ExtendedMaterial, wireframe::NoWireframe}, prelude::*, render::storage::ShaderStorageBuffer
+    asset::RenderAssetUsages, camera::visibility::NoFrustumCulling, mesh::{PrimitiveTopology, SphereKind, SphereMeshBuilder}, pbr::{ExtendedMaterial, wireframe::NoWireframe}, prelude::*, render::storage::ShaderStorageBuffer
 };
 
 use crate::{PARTICLE_COUNT, simulation::{assets::SimulationParams, components::{SimulationBuffers, WaterSimulation}}};
@@ -11,7 +11,7 @@ use super::{
 pub fn spawn_simulation_once(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ExtendedMaterial<StandardMaterial, ParticleMaterial>>>,
+    mut materials: ResMut<Assets<ParticleMaterial>>,
     //mut materials: ResMut<Assets<StandardMaterial>>,
     mut storage_buffers: ResMut<Assets<ShaderStorageBuffer>>,
 ) {
@@ -42,21 +42,23 @@ pub fn spawn_simulation_once(
         ShaderStorageBuffer::from(vel_data)
     );
 
+    let vertex_count = PARTICLE_COUNT as usize * 6;
+    let v_positions = vec![[0.0, 0.0, 0.0]; vertex_count];
+    let v_uvs = vec![[0.0, 0.0]; vertex_count];
 
-    // --- Dummy Mesh (Vertex Index wird benutzt) ---
-    let mesh = meshes.add(Sphere::new(0.05));
+    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::all());
+    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, v_positions);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, v_uvs);
+
+    let mesh = meshes.add(mesh);
 
     // --- Material liest direkt aus dem Compute-Buffer ---
     let material = materials.add(
-            ExtendedMaterial {
-                base: StandardMaterial {
-                    base_color: Color::srgba(0.2, 0.7, 1.0, 1.0),
-                    ..Default::default()
-                },
-                extension: ParticleMaterial {
-                    positions: positions.clone(),
-                    velocities: velocities.clone(),
-                }
+            ParticleMaterial {
+                positions: positions.clone(),
+                velocities: velocities.clone(),
+                color: Vec4::new(0.2, 0.5, 1.0, 1.0),
+                radius: 0.05,
             }
         );
 
@@ -72,14 +74,7 @@ pub fn spawn_simulation_once(
         Transform::IDENTITY,
         GlobalTransform::IDENTITY,
         InheritedVisibility::VISIBLE,
-    )).with_children(|parent| {
-        for _ in 0..PARTICLE_COUNT {
-            parent.spawn((
-                NoWireframe,
-                Mesh3d(mesh.clone()),
-                MeshMaterial3d(material.clone()),
-                NoFrustumCulling,
-            ));
-        }
-    });
+        Mesh3d(mesh.clone()),
+        MeshMaterial3d(material.clone()),
+    ));
 }

@@ -13,6 +13,13 @@ use crate::PARTICLE_COUNT;
 use crate::simulation::assets::SimulationParams;
 use crate::simulation::components::{SimulationBuffers, PreparedSimulationBindGroup};
 
+const FIXED_DT: f32 = 1.0 / 120.0;
+const MAX_STEPS: u32 = 4;
+
+#[derive(Resource)]
+pub struct SimulationTime {
+    pub accumulator: f32,
+}
 
 #[derive(Resource)]
 pub struct SimulationComputePipeline {
@@ -126,8 +133,6 @@ pub fn prepare_simulation_bind_groups(
     render_device: Res<RenderDevice>,
     settings_uniform: Res<SimulationUniform>,
     storage_buffers: Res<RenderAssets<GpuShaderStorageBuffer>>, // <- Da legen wir den StorageBuffer ab
-    queue: Res<RenderQueue>,
-    // nur die Entities die noch keine PreparedSimulationBindGroup haben
     query: Query<(Entity, &SimulationBuffers), Without<PreparedSimulationBindGroup>>,
 ) {
     if query.is_empty() {
@@ -178,6 +183,7 @@ pub fn run_compute(
     pipeline_cache: Res<PipelineCache>,
     pipeline: Res<SimulationComputePipeline>,
     time: Res<Time>,
+    mut sim_time: ResMut<SimulationTime>,
     render_device: Res<RenderDevice>,
     render_queue: Res<RenderQueue>,
     query: Query<&PreparedSimulationBindGroup>,
@@ -190,30 +196,39 @@ pub fn run_compute(
         None => return, // Pipeline noch nicht bereit
     };
 
-    let mut encoder = render_device.create_command_encoder(
-        &CommandEncoderDescriptor {
-            label: Some("simulation_compute_encoder"),
-            ..Default::default()
-        }
-    );
+    sim_time.accumulator += time.delta_secs();
 
-    {
-        let mut pass = encoder.begin_compute_pass(
-            &ComputePassDescriptor {
-                label: Some("simulation_compute_pass"),
+    let mut steps = 0;
+
+    while sim_time.accumulator >= FIXED_DT && steps < MAX_STEPS {
+        let mut encoder = render_device.create_command_encoder(
+            &CommandEncoderDescriptor {
+                label: Some("simulation_compute_encoder"),
                 ..Default::default()
             }
         );
 
-        pass.set_pipeline(pipeline);
-        for bind_group in query.iter() {
-            pass.set_bind_group(0, &bind_group.bind_group, &[]);
+        {
+            let mut pass = encoder.begin_compute_pass(
+                &ComputePassDescriptor {
+                    label: Some("simulation_compute_pass"),
+                    ..Default::default()
+                }
+            );
 
-            // delta time pushen
-            pass.set_push_constants(0, bytemuck::bytes_of(&delta_time));
-            pass.dispatch_workgroups(PARTICLE_COUNT / 256, 1, 1);
+            pass.set_pipeline(pipeline);
+            for bind_group in query.iter() {
+                pass.set_bind_group(0, &bind_group.bind_group, &[]);
+
+                // delta time pushen
+                pass.set_push_constants(0, bytemuck::bytes_of(&FIXED_DT));
+                pass.dispatch_workgroups(PARTICLE_COUNT / 256, 1, 1);
+            }
         }
-    }
 
-    render_queue.submit(Some(encoder.finish()));
+        render_queue.submit(Some(encoder.finish()));
+
+        sim_time.accumulator -= FIXED_DT;
+        steps += 1;
+    }
 }
