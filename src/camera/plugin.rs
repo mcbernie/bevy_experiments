@@ -2,6 +2,7 @@ use bevy::image::TextureFormatPixelInfo;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureViewDescriptor, TextureViewDimension};
 use bevy::{core_pipeline::Skybox, input::mouse::MouseMotion, pbr::ScreenSpaceAmbientOcclusion, prelude::*};
 use crate::app_state::{AppState, LoadingProgress};
+use crate::camera::components::MouseLockedToFlyCam;
 use crate::config::SystemConfigRes;
 
 use super::components::FlyCam;
@@ -13,7 +14,7 @@ impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Update, (load_skybox, asset_loaded).run_if(in_state(AppState::Loading)))
            .add_systems(OnEnter(AppState::InGame), setup_camera)
-           .add_systems(Update, (flycam_look, flycam_move).run_if(in_state(AppState::InGame)));
+           .add_systems(Update, (flycam_look, flycam_move, toggle_mouse_lock).run_if(in_state(AppState::InGame)));
     }
 }
 
@@ -61,7 +62,7 @@ fn setup_camera(
 
 fn flycam_look(
     mut mouse_motion_events: MessageReader<MouseMotion>,
-    mut query: Query<(&FlyCam, &mut Transform)>,
+    mut query: Query<(&FlyCam, &mut Transform), With<MouseLockedToFlyCam>>,
 ) {
     let mut delta = Vec2::ZERO;
     for ev in mouse_motion_events.read() {
@@ -78,6 +79,22 @@ fn flycam_look(
 
         transform.rotation = yaw * transform.rotation;
         transform.rotation = transform.rotation * pitch;
+    }
+}
+
+fn toggle_mouse_lock(
+    mut commands: Commands,
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut query: Query<(Entity, Option<&MouseLockedToFlyCam>)>,
+) {
+    for (entity, mouse_locked) in &mut query {
+        if keyboard.just_pressed(KeyCode::KeyL) {
+            if mouse_locked.is_some() {
+                commands.entity(entity).remove::<MouseLockedToFlyCam>();
+            } else {
+                commands.entity(entity).insert(MouseLockedToFlyCam);
+            }
+        }
     }
 }
 
@@ -144,8 +161,6 @@ fn asset_loaded(
 
     let w = image.size().x as u32;
     let h = image.size().y as u32;
-
-    info!("Skybox cross image loaded: {}x{}", w, h);    
 
     // 4x3 Cross erwartet
     let face = w / 4;
