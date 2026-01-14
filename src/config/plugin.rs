@@ -21,7 +21,7 @@ impl Plugin for SystemConfigPlugin {
 #[derive(Asset, TypePath, Debug, Clone)]
 pub struct SystemConfigAsset(pub SystemConfig);
 
-#[derive(Default)]
+#[derive(Default, TypePath)]
 pub struct ConfigRonLoader;
 
 #[derive(Resource)]

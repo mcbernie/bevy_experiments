@@ -5,15 +5,11 @@ use bevy::render::{
     storage::ShaderStorageBuffer, 
 };
 
-#[derive(Component)]
-pub struct WaterSimulation {
-    pub particle_count: u32,
-}
-
 #[derive(Component, ExtractComponent, Clone)]
 pub struct SimulationBuffers {
     pub positions: Handle<ShaderStorageBuffer>,
     pub velocities: Handle<ShaderStorageBuffer>,
+    pub spatial_keys: Handle<ShaderStorageBuffer>,
 }
 
 // lebt nur in der RenderApp

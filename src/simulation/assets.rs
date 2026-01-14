@@ -1,9 +1,11 @@
-use bevy::{prelude::*, render::{extract_resource::ExtractResource, render_resource::ShaderType}};
-use bevy_inspector_egui::prelude::*;
+use bevy::prelude::*; 
+use bevy::render::{
+    extract_resource::ExtractResource, 
+    render_resource::ShaderType
+};
 
-
-#[derive(Reflect, Resource, InspectorOptions, ExtractResource, ShaderType, Clone)]
-#[reflect(Resource, InspectorOptions)]
+#[derive(Reflect, Resource, ExtractResource, ShaderType, Clone)]
+#[reflect(Resource)]
 pub struct SimulationParams {
     pub box_size: f32,
     pub gravity: f32,

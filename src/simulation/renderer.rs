@@ -1,11 +1,16 @@
 use bevy::{
-    asset::RenderAssetUsages, camera::visibility::NoFrustumCulling, mesh::{PrimitiveTopology, SphereKind, SphereMeshBuilder}, pbr::{ExtendedMaterial, wireframe::NoWireframe}, prelude::*, render::storage::ShaderStorageBuffer
+    prelude::*, 
+    asset::RenderAssetUsages, 
+    mesh::PrimitiveTopology, 
+    camera::visibility::NoFrustumCulling, 
+    render::storage::ShaderStorageBuffer
 };
 
-use crate::{PARTICLE_COUNT, simulation::{assets::SimulationParams, components::{SimulationBuffers, WaterSimulation}}};
+use crate::PARTICLE_COUNT;
 
 use super::{
     material::ParticleMaterial, 
+    components::SimulationBuffers
 };
 
 pub fn spawn_simulation_once(
@@ -64,9 +69,6 @@ pub fn spawn_simulation_once(
 
     // --- Entity ---
     commands.spawn((
-        WaterSimulation {
-            particle_count: PARTICLE_COUNT,
-        },
         SimulationBuffers {
             positions,
             velocities,

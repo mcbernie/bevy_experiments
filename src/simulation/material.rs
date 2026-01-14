@@ -1,8 +1,17 @@
 use bevy::{
-    mesh::{MeshVertexBufferLayout, MeshVertexBufferLayoutRef, VertexBufferLayout}, pbr::{MaterialPipeline, MaterialPipelineKey}, prelude::*, render::{
-        render_resource::{AsBindGroup, RenderPipelineDescriptor, SpecializedMeshPipelineError, VertexStepMode}, 
+    mesh::{MeshVertexBufferLayoutRef, VertexBufferLayout}, 
+    pbr::{MaterialPipeline, MaterialPipelineKey}, 
+    prelude::*, 
+    render::{
+        render_resource::{
+            AsBindGroup, 
+            RenderPipelineDescriptor, 
+            SpecializedMeshPipelineError, 
+            VertexStepMode
+        }, 
         storage::ShaderStorageBuffer
-    }, shader::ShaderRef
+    }, 
+    shader::ShaderRef
 };
 
 #[derive(Asset, AsBindGroup, TypePath, Debug, Clone)]

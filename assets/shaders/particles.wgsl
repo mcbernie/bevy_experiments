@@ -7,10 +7,15 @@ var<storage, read_write> velocities: array<vec4<f32>>;
 struct SimulationParams {
     box_size: f32,
     gravity: f32,
+    cell_size: f32,
+    _pad: f32,
 };
 
 @group(0) @binding(2)
 var<uniform> params: SimulationParams;
+
+@group(0) @binding(3)
+var<storage, read_write> spatial_keys: array<u32>;
 
 struct Push {
     delta_time: f32,
@@ -22,9 +27,6 @@ const GRAVITY: vec3<f32> = vec3<f32>(0.0, -1.0, 0.0);
 const RADIUS: f32 = 0.05;
 const RESTITUTION: f32 = 0.9;
 const BOX_SIZE: f32 = 2.0;
-
-//const MIN_BOUND: vec3<f32> = vec3<f32>(-BOX_SIZE / 2.0 + RADIUS, 0.0 + RADIUS, -BOX_SIZE / 2.0 + RADIUS);
-//const MAX_BOUND: vec3<f32> = vec3<f32>( BOX_SIZE / 2.0 - RADIUS, BOX_SIZE - RADIUS, BOX_SIZE / 2.0 - RADIUS);
 
 fn set_pos(i: u32, new_pos: vec3<f32>) {
     positions[i] = vec4<f32>(new_pos, positions[i].w);
@@ -74,11 +76,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
         }
     }
 
-    /* ---------------------------------
-       4. Particle–Particle collisions
-       (naiv O(n²), absichtlich simpel)
-    --------------------------------- */
-    /*for (var j: u32 = 0u; j < arrayLength(&positions); j++) {
+    for (var j: u32 = 0u; j < arrayLength(&positions); j++) {
         if (j == i) {
             continue;
         }
@@ -109,5 +107,5 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
             }
         }
 
-    }*/
+    }
 }
