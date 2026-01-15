@@ -12,6 +12,7 @@ var<storage, read_write> spatial_keys: array<u32>;
 struct SimulationParams {
     box_size: f32,
     gravity: f32,
+    particle_radius: f32,
     cell_size: f32,
     _pad: f32,
 };

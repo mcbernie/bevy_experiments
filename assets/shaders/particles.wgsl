@@ -5,7 +5,6 @@
     push
 };
 
-const RADIUS: f32 = 0.05;
 const RESTITUTION: f32 = 0.9;
 
 fn set_pos(i: u32, new_pos: vec3<f32>) {
@@ -22,8 +21,8 @@ fn set_vel(i: u32, new_vel: vec3<f32>) {
 fn main(@builtin(global_invocation_id) id: vec3<u32>) {
     let i = id.x;
 
-    let min_bound = vec3<f32>(-params.box_size / 2.0 + RADIUS, 0.0 + RADIUS, -params.box_size / 2.0 + RADIUS);
-    let max_bound = vec3<f32>( params.box_size / 2.0 - RADIUS, params.box_size - RADIUS, params.box_size / 2.0 - RADIUS);
+    let min_bound = vec3<f32>(-params.box_size / 2.0 + params.particle_radius, 0.0 + params.particle_radius, -params.box_size / 2.0 + params.particle_radius);
+    let max_bound = vec3<f32>( params.box_size / 2.0 - params.particle_radius, params.box_size - params.particle_radius, params.box_size / 2.0 - params.particle_radius);
 
     if (i >= arrayLength(&positions)) {
         return;
@@ -67,7 +66,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
 
         var delta = pi - pj;
         var dist = length(delta);
-        let min_dist = RADIUS * 2.0;
+        let min_dist = params.particle_radius * 2.0;
 
         if (dist < min_dist && dist > 0.0001) {
             let normal = delta / dist;

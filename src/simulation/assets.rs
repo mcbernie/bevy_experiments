@@ -12,6 +12,7 @@ pub struct SimulationParams {
     #[inspector(min = 1.0, max = 20.0, display = NumberDisplay::Slider)]
     pub box_size: f32,
     pub gravity: f32,
+    pub particle_radius: f32,
     pub cell_size: f32,
     #[reflect(ignore)]
     pub _pad: f32,
@@ -22,6 +23,7 @@ impl Default for SimulationParams {
         SimulationParams {
             box_size: 3.0,
             gravity: -9.81,
+            particle_radius: 0.05,
             cell_size: 0.1,
             _pad: 0.0,
         }
