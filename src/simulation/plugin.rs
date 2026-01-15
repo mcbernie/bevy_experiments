@@ -1,5 +1,5 @@
 
-use bevy::{prelude::*, render::{Render, RenderApp, RenderStartup, RenderSystems, extract_component::ExtractComponentPlugin, extract_resource::ExtractResourcePlugin, render_graph::RenderGraph}};
+use bevy::{asset::{load_internal_asset, uuid_handle}, prelude::*, render::{Render, RenderApp, RenderStartup, RenderSystems, extract_component::ExtractComponentPlugin, extract_resource::ExtractResourcePlugin, render_graph::RenderGraph}};
 use bevy_inspector_egui::quick::ResourceInspectorPlugin;
 //use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::ResourceInspectorPlugin};
 
@@ -15,6 +15,9 @@ use super::systems::{
     run_compute
 };
 
+const SIM_DATA: Handle<Shader> =
+    uuid_handle!("990ee5ac-3d4a-4593-841f-6b46f02abcb4");
+
 pub struct SimulationPlugin;
 
 impl Plugin for SimulationPlugin {
@@ -29,6 +32,13 @@ impl Plugin for SimulationPlugin {
         .insert_resource(SimulationParams::default())
         .add_plugins(ExtractComponentPlugin::<SimulationBuffers>::default())
         .add_plugins(ResourceInspectorPlugin::<SimulationParams>::default());
+
+        load_internal_asset!(
+            app,
+            SIM_DATA,
+            "shaders/sim_data.wgsl",
+            Shader::from_wgsl
+        );
 
         let render_app = app.sub_app_mut(RenderApp);
 

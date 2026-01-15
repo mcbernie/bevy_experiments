@@ -1,21 +1,8 @@
-@group(0) @binding(0)
-var<storage, read_write> positions: array<vec4<f32>>;
-
-@group(0) @binding(1)
-var<storage, read_write> velocities: array<vec4<f32>>;
-
-@group(0) @binding(2)
-var<storage, read_write> spatial_keys: array<u32>;
-
-struct SimulationParams {
-    box_size: f32,
-    gravity: f32,
-    cell_size: f32,
-    _pad: f32,
+#import simulation::data::{
+    positions,
+    velocities,
+    params,
 };
-
-@group(0) @binding(3)
-var<uniform> params: SimulationParams;
 
 struct Push {
     delta_time: f32,
