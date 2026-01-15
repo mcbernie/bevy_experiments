@@ -1,20 +1,18 @@
 
-use bevy::{asset::{load_internal_asset, uuid_handle}, prelude::*, render::{Render, RenderApp, RenderStartup, RenderSystems, extract_component::ExtractComponentPlugin, extract_resource::ExtractResourcePlugin, render_graph::RenderGraph}};
-use bevy_inspector_egui::quick::ResourceInspectorPlugin;
+use bevy::{asset::{load_internal_asset, uuid_handle}, prelude::*, render::{Render, RenderApp, RenderStartup, RenderSystems, extract_component::ExtractComponentPlugin, render_graph::RenderGraph}};
+// use bevy_inspector_egui::quick::ResourceInspectorPlugin;
 //use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::ResourceInspectorPlugin};
 
-use crate::simulation::{node::{SimulationNode, SimulationSystemLabel}, renderer::update_simulation_gizmo};
+use crate::simulation::{node::{SimulationNode, SimulationSystemLabel}, renderer::update_simulation_gizmo, systems::{SimulationSwapState, init_per_component, swap_simulation_buffers}};
 
 use super::assets::SimulationParams;
 use super::components::SimulationBuffers; 
 use super::renderer::spawn_simulation_once;
 use super::systems::{
     SimulationTime, 
-    SimulationUniform, 
     update_simulation_uniform,
     init_compute_pipeline, 
     prepare_simulation_bind_groups, 
-    run_compute
 };
 
 const SIM_DATA: Handle<Shader> =
@@ -46,10 +44,12 @@ impl Plugin for SimulationPlugin {
         let render_app = app.sub_app_mut(RenderApp);
 
         render_app.insert_resource(SimulationTime { accumulator: 0.0 });
+        render_app.insert_resource(SimulationSwapState::default());
         render_app
             // Extraction synchronisiere Daten von der GameApp zur RenderApp
             .add_systems(RenderStartup,
                 init_compute_pipeline,
+
             )
             .add_systems(
                 Render,
@@ -58,10 +58,15 @@ impl Plugin for SimulationPlugin {
                     //run_compute,
                 )
             )
-            .add_systems(Render, 
-                prepare_simulation_bind_groups
+            .add_systems(Render, (
+                swap_simulation_buffers.before(RenderSystems::PrepareBindGroups),
+                init_per_component
                     .in_set(RenderSystems::PrepareBindGroups)
-            );
+                    .before(prepare_simulation_bind_groups),
+
+                prepare_simulation_bind_groups
+                    .in_set(RenderSystems::PrepareBindGroups),
+            ));
         
         // instead of using a compute system, i try to create a graph node
         // can a node works if we need to query components short before dispatch_workgroups?

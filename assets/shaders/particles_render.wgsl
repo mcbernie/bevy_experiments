@@ -19,10 +19,14 @@ var<storage, read> positions: array<vec4<f32>>;
 @group(#{MATERIAL_BIND_GROUP}) @binding(1)
 var<storage, read> velocities: array<vec4<f32>>;
 
+@group(#{MATERIAL_BIND_GROUP}) @binding(2)
+var<storage, read> spatial_keys: array<u32>;
+
 struct VertexOut {
     @builtin(position) clip_pos: vec4<f32>,
     @location(1) uv: vec2<f32>,          
     @location(2) velocity: vec3<f32>,    
+    @location(3) particle_index: u32,    
 };
 
 @vertex
@@ -51,6 +55,7 @@ fn vertex(
     out.uv = QUAD_OFFSETS[corner] + vec2(0.5);
     out.velocity = velocity;
     out.clip_pos = view.clip_from_world * vec4(world_pos, 1.0);
+    out.particle_index = particle_index;
     return out;
 }
 
@@ -84,8 +89,14 @@ fn fragment(in: VertexOut) -> FragmentOut {
     let base_color = speed_to_color(t);
     let color = base_color * (0.4 + 0.6 * diffuse);
 
+
+
+    let key = spatial_keys[in.particle_index];
+    let h_color = hash_color(key);
+
     var out: FragmentOut;
     out.color = vec4(color, 1.0);
+    //out.color = vec4(h_color, 1.0);
     return out;
 }
 
@@ -104,4 +115,11 @@ fn speed_to_color(t: f32) -> vec3<f32> {
         let k = (t - 0.5) / 0.5;
         return mix(c1, c2, k);
     }
+}
+
+fn hash_color(k: u32) -> vec3<f32> {
+    let r = f32((k * 16807u) & 255u) / 255.0;
+    let g = f32((k * 48271u) & 255u) / 255.0;
+    let b = f32((k * 69621u) & 255u) / 255.0;
+    return vec3(r, g, b);
 }

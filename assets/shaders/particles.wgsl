@@ -1,91 +1,102 @@
 #import simulation::data::{
-    positions,
-    velocities,
+    positions_in,
+    velocities_in,
+    positions_out,
+    velocities_out,
+    positions_sorted,
+    velocities_sorted,
     params,
-    push
+    push,
+    spatial_counts,
+    spatial_offsets,
+    hash_cell,
+    cell_from_pos,
+
 };
 
 const RESTITUTION: f32 = 0.9;
 
-fn set_pos(i: u32, new_pos: vec3<f32>) {
-    positions[i] = vec4<f32>(new_pos, positions[i].w);
-}
-
-fn set_vel(i: u32, new_vel: vec3<f32>) {
-    velocities[i] = vec4<f32>(new_vel, velocities[i].w);
-}
-
-
 @compute
 @workgroup_size(256)
-fn main(@builtin(global_invocation_id) id: vec3<u32>) {
+fn external_forces(@builtin(global_invocation_id) id: vec3<u32>) {
     let i = id.x;
+    if (i >= arrayLength(&positions_in)) {
+        return;
+    }
 
     let min_bound = vec3<f32>(-params.box_size / 2.0 + params.particle_radius, 0.0 + params.particle_radius, -params.box_size / 2.0 + params.particle_radius);
     let max_bound = vec3<f32>( params.box_size / 2.0 - params.particle_radius, params.box_size - params.particle_radius, params.box_size / 2.0 - params.particle_radius);
 
-    if (i >= arrayLength(&positions)) {
+    let dt = push.delta_time;
+
+    // --- READ ---
+    var pos = positions_in[i].xyz;
+    var vel = velocities_in[i].xyz;
+
+    // 1. Gravity
+    vel += vec3<f32>(vec3<f32>(0.0, params.gravity, 0.0) * dt);
+
+    // 2. Integrate
+    pos += vel * dt;
+
+    // 3. World bounds + bounce
+    for (var axis: u32 = 0u; axis < 3u; axis++) {
+        if (pos[axis] < min_bound[axis]) {
+            pos[axis] = min_bound[axis];
+            vel[axis] *= -RESTITUTION;
+        }
+
+        if (pos[axis] > max_bound[axis]) {
+            pos[axis] = max_bound[axis];
+            vel[axis] *= -RESTITUTION;
+        }
+    }
+
+    positions_out[i]  = vec4<f32>(pos, positions_in[i].w);
+    velocities_out[i] = vec4<f32>(vel, velocities_in[i].w);
+}
+
+@compute
+@workgroup_size(256)
+fn collision(@builtin(global_invocation_id) id: vec3<u32>) {
+    let i = id.x;
+    if (i >= arrayLength(&positions_sorted)) {
         return;
     }
 
-    let dt = push.delta_time;
+    let pos = positions_sorted[i].xyz;
 
-    /* ---------------------------------
-       1. Gravity
-    --------------------------------- */
-    velocities[i] += vec4<f32>(vec3<f32>(0.0, params.gravity, 0.0) * dt, 0.0);
+    // 1. Zelle aus POSITION bestimmen
+    let cell = cell_from_pos(pos, params.cell_size);
+    let key  = hash_cell(cell);
 
-    /* ---------------------------------
-       2. Integrate position
-    --------------------------------- */
-    positions[i] += velocities[i] * dt;
+    let start = spatial_offsets[key];
+    let end   = start + spatial_counts[key];
 
-    /* ---------------------------------
-       3. World bounds + bounce
-    --------------------------------- */
-    for (var axis: u32 = 0u; axis < 3u; axis++) {
-        if (positions[i][axis] < min_bound[axis]) {
-            positions[i][axis] = min_bound[axis];
-            velocities[i][axis] *= -RESTITUTION;
-        }
+    var new_pos = pos;
+    var new_vel = velocities_sorted[i].xyz;
 
-        if (positions[i][axis] > max_bound[axis]) {
-            positions[i][axis] = max_bound[axis];
-            velocities[i][axis] *= -RESTITUTION;
-        }
-    }
+    for (var j = start; j < end; j++) {
+        if (j == i) { continue; }
 
-    // extremly inefficient n^2 collision detection + response
-    for (var j: u32 = 0u; j < arrayLength(&positions); j++) {
-        if (j == i) {
-            continue;
-        }
+        let other_pos = positions_sorted[j].xyz;
 
-        let pi = positions[i].xyz;
-        let pj = positions[j].xyz;
-
-        var delta = pi - pj;
-        var dist = length(delta);
+        let delta = new_pos - other_pos;
+        let dist = length(delta);
         let min_dist = params.particle_radius * 2.0;
 
         if (dist < min_dist && dist > 0.0001) {
             let normal = delta / dist;
             let penetration = min_dist - dist;
 
-            // Position nur für i korrigieren
-            let new_pi = pi + normal * (penetration * 0.5);
-            set_pos(i, new_pi);
-
-            let vi = velocities[i].xyz;
-            let vj = velocities[j].xyz;
-            let rel_vel = vi - vj;
-            let vel_n = dot(rel_vel, normal);
-
-            if (vel_n < 0.0) {
-                let impulse = -(1.0 + RESTITUTION) * vel_n * 0.5;
-                set_vel(i, vi + normal * impulse);
-            }
+            // einfache PBD-Korrektur
+            new_pos += normal * penetration * 0.5;
         }
-
     }
+
+    // WRITE (wichtig: in positions_out, NICHT sorted!)
+    positions_out[i] = vec4<f32>(new_pos, positions_sorted[i].w);
+    velocities_out[i] = vec4<f32>(new_vel, velocities_sorted[i].w);
 }
+
+

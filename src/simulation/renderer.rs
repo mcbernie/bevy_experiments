@@ -34,13 +34,21 @@ pub fn spawn_simulation_once(
         vel_data.push([0.0, 0.0, 0.0, 0.0]);
     }
 
-    let positions = storage_buffers.add(
-        ShaderStorageBuffer::from(pos_data.clone())
-    );
+    let positions = [storage_buffers.add(
+            ShaderStorageBuffer::from(pos_data.clone())
+        ),
+        storage_buffers.add(
+            ShaderStorageBuffer::from(pos_data.clone())
+        )
+    ];
 
-    let velocities = storage_buffers.add(
-        ShaderStorageBuffer::from(vel_data)
-    );
+    let velocities = [storage_buffers.add(
+            ShaderStorageBuffer::from(vel_data.clone())
+        ),
+        storage_buffers.add(
+            ShaderStorageBuffer::from(vel_data.clone())
+        )
+    ];
 
     let spk_buffer = ShaderStorageBuffer::from(vec![0u32; PARTICLE_COUNT as usize]);
 
@@ -58,8 +66,9 @@ pub fn spawn_simulation_once(
 
     let material = materials.add(
         ParticleMaterial {
-            positions: positions.clone(),
-            velocities: velocities.clone(),
+            positions: positions[0].clone(), // currently using only one buffer for rendering
+            velocities: velocities[0].clone(),
+            spatial_keys: spatial_keys.clone(),
             color: Vec4::new(0.2, 0.5, 1.0, 1.0),
             radius: 0.05,
         }
@@ -71,6 +80,8 @@ pub fn spawn_simulation_once(
         SimulationBuffers {
             positions,
             velocities,
+            spatial_keys,
+            active_index: 0,
         },
         SimulationParams::default(),
         Transform::IDENTITY,

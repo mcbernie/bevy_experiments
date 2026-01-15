@@ -20,9 +20,14 @@ pub struct ParticleMaterial {
     pub positions: Handle<ShaderStorageBuffer>,
     #[storage(1, read_only)]
     pub velocities: Handle<ShaderStorageBuffer>,
-    #[uniform(2)]
-    pub color: Vec4,
+    
+    // for debugging
+    #[storage(2, read_only)]
+    pub spatial_keys: Handle<ShaderStorageBuffer>,
+
     #[uniform(3)]
+    pub color: Vec4,
+    #[uniform(4)]
     pub radius: f32,
 }
 
