@@ -2,18 +2,11 @@
     positions,
     velocities,
     params,
+    push
 };
 
-struct Push {
-    delta_time: f32,
-};
-
-var<push_constant> push: Push;
-
-const GRAVITY: vec3<f32> = vec3<f32>(0.0, -1.0, 0.0);
 const RADIUS: f32 = 0.05;
 const RESTITUTION: f32 = 0.9;
-const BOX_SIZE: f32 = 2.0;
 
 fn set_pos(i: u32, new_pos: vec3<f32>) {
     positions[i] = vec4<f32>(new_pos, positions[i].w);

@@ -18,3 +18,9 @@ struct SimulationParams {
 
 @group(0) @binding(3)
 var<uniform> params: SimulationParams;
+
+struct Push {
+    delta_time: f32,
+};
+
+var<push_constant> push: Push;
