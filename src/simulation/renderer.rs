@@ -27,7 +27,7 @@ pub fn spawn_simulation_once(
 
     for _ in 0..PARTICLE_COUNT {
         let x = rng.random_range(-0.8..0.8);
-        let y = rng.random_range(-0.8..0.8);
+        let y = rng.random_range(0.8..1.8);
         let z = rng.random_range(-0.8..0.8);
 
         pos_data.push([x, y, z, 0.0]);

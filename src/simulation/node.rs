@@ -17,13 +17,6 @@ pub struct SimulationNode;
 
 
 impl Node for SimulationNode {
-    fn update(&mut self, world: &mut World) {
-        
-        let mut q = world.query::<(Entity, &mut SimulationBuffers)>();
-
-
-    }
-
     fn run(
         &self,
         _graph: &mut RenderGraphContext,

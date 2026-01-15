@@ -11,6 +11,7 @@
     spatial_offsets,
     hash_cell,
     cell_from_pos,
+    spatial_sorted_indices,
 
 };
 
@@ -64,52 +65,58 @@ fn collision(@builtin(global_invocation_id) id: vec3<u32>) {
         return;
     }
 
-    let pos = positions_sorted[i].xyz;
+    // Position & Velocity des SORTIERTEN Eintrags
+    //var pos = positions_sorted[i].xyz;
+    //var vel = velocities_sorted[i].xyz;
 
-    // 1. Zelle aus POSITION bestimmen
+    // Original-Partikelindex merken!
+    let original = spatial_sorted_indices[i];
+
+    // BASIS = integrierte Position
+    var pos = positions_out[original].xyz;
+    var vel = velocities_out[original].xyz;
+
+    // Zelle bestimmen
     let cell = cell_from_pos(pos, params.cell_size);
-    let key  = hash_cell(cell);
+    let key  = hash_cell(cell) % arrayLength(&spatial_counts);
 
     let start = spatial_offsets[key];
-    let end   = start + spatial_counts[key];
+    let count = spatial_counts[key];
+    let end   = start + count;
 
-    var new_pos = pos;
-    var new_vel = velocities_sorted[i].xyz;
+    let radius   = params.particle_radius;
+    let min_dist = radius * 2.0;
 
-    if (end - start <= 1u) {
-        // keine Nachbarn
-        positions_out[i] = vec4<f32>(new_pos, positions_sorted[i].w);
-        velocities_out[i] = vec4<f32>(new_vel, velocities_sorted[i].w);
-        return;
-    }
-
-    if (end >= arrayLength(&positions_sorted)) {
-        // Out-of-bounds Schutz
-        positions_out[i] = vec4<f32>(new_pos, positions_sorted[i].w);
-        velocities_out[i] = vec4<f32>(new_vel, velocities_sorted[i].w);
-        return;
-    }
-
+    // Kollisionen
     for (var j = start; j < end; j++) {
-        if (j == i) { continue; }
+        if (j == i) {
+            continue;
+        }
 
         let other_pos = positions_sorted[j].xyz;
 
-    //    let delta = new_pos - other_pos;
-    //    let dist = length(delta);
-    //    let min_dist = params.particle_radius * 2.0;
+        let delta = pos - other_pos;
+        let dist  = length(delta);
 
-    //    if (dist < min_dist && dist > 0.0001) {
-    //        let normal = delta / dist;
-    //        let penetration = min_dist - dist;
+        if (dist > 0.0001 && dist < min_dist) {
+            let normal = delta / dist;
+            let penetration = min_dist - dist;
 
-    //        // einfache PBD-Korrektur
-    //        new_pos += normal * penetration * 0.5;
-    //    }
+            // Positionskorrektur (PBD-Style)
+            pos += normal * penetration * 0.5;
+
+            // minimale Reaktion, damit man was sieht
+            vel += normal * penetration * 5.0;
+        }
     }
 
-    positions_out[i] = vec4<f32>(new_pos, positions_sorted[i].w);
-    velocities_out[i] = vec4<f32>(new_vel, velocities_sorted[i].w);
+    // WICHTIG: zurück auf ORIGINALEN INDEX schreiben
+    positions_out[original] =
+        vec4<f32>(pos, positions_sorted[i].w);
+
+    velocities_out[original] =
+        vec4<f32>(vel, velocities_sorted[i].w);
 }
+
 
 
