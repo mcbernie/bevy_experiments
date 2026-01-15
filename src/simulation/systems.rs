@@ -227,46 +227,53 @@ pub fn run_compute(
 ) {
 
     if query.is_empty() {
-        // nichts zu tun
         return;
     }
-    let pipeline = match pipeline_cache.get_compute_pipeline(pipeline.compute_pipeline) {
-        Some(p) => p,
-        None => return, // Pipeline noch nicht bereit
+    let Some(main_pipeline) = pipeline_cache.get_compute_pipeline(pipeline.compute_pipeline)
+    else {
+        return;
+    };
+    let Some(spatial_hash_pipeline) = pipeline_cache.get_compute_pipeline(pipeline.spatial_hash_pipeline)
+    else {
+        return;
     };
 
-    // this could later help to be more stable in terms of time steps
-    //sim_time.accumulator += time.delta_secs();
-    //let mut steps = 0;
-    //while sim_time.accumulator >= FIXED_DT && steps < MAX_STEPS {
-        let mut encoder = render_device.create_command_encoder(
-            &CommandEncoderDescriptor {
-                label: Some("simulation_compute_encoder"),
+    let mut encoder = render_device.create_command_encoder(
+        &CommandEncoderDescriptor {
+            label: Some("simulation_compute_encoder"),
+            ..Default::default()
+        }
+    );
+
+    {
+        let mut pass = encoder.begin_compute_pass(
+            &ComputePassDescriptor {
+                label: Some("spatial_hash_compute_pass"),
                 ..Default::default()
             }
         );
-
-        {
-            let mut pass = encoder.begin_compute_pass(
-                &ComputePassDescriptor {
-                    label: Some("simulation_compute_pass"),
-                    ..Default::default()
-                }
-            );
-
-            pass.set_pipeline(pipeline);
-            for simulation_bind_groups in query.iter() {
+        pass.set_pipeline(spatial_hash_pipeline);
+        for simulation_bind_groups in query.iter() {
                 pass.set_bind_group(0, &simulation_bind_groups.bind_group, &[]);
+                pass.dispatch_workgroups((PARTICLE_COUNT + 255) / 256, 1, 1);
+        }
+    }
 
-                // delta time pushen
+    {
+        let mut pass = encoder.begin_compute_pass(
+            &ComputePassDescriptor {
+                label: Some("simulation_compute_pass"),
+                ..Default::default()
+            }
+        );
+        pass.set_pipeline(main_pipeline);
+        for simulation_bind_groups in query.iter() {
+                pass.set_bind_group(0, &simulation_bind_groups.bind_group, &[]);
                 pass.set_push_constants(0, bytemuck::bytes_of(&FIXED_DT));
                 pass.dispatch_workgroups((PARTICLE_COUNT + 255) / 256, 1, 1);
-            }
         }
+    }
 
-        render_queue.submit(Some(encoder.finish()));
+    render_queue.submit(Some(encoder.finish()));
 
-    //    sim_time.accumulator -= FIXED_DT;
-    //    steps += 1;
-    //}
 }
