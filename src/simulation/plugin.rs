@@ -3,6 +3,8 @@ use bevy::{asset::{load_internal_asset, uuid_handle}, prelude::*, render::{Rende
 use bevy_inspector_egui::quick::ResourceInspectorPlugin;
 //use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::ResourceInspectorPlugin};
 
+use crate::simulation::renderer::update_simulation_gizmo;
+
 use super::assets::SimulationParams;
 use super::components::SimulationBuffers; 
 use super::renderer::spawn_simulation_once;
@@ -26,7 +28,10 @@ impl Plugin for SimulationPlugin {
         app.add_plugins(ExtractComponentPlugin::<SimulationParams>::default())
         .add_systems(
             Update,
-            spawn_simulation_once.run_if(run_once),
+            (
+                spawn_simulation_once.run_if(run_once),
+                update_simulation_gizmo,
+            ),
         )
         .register_type::<SimulationParams>()
         .add_plugins(ExtractComponentPlugin::<SimulationBuffers>::default());

@@ -85,3 +85,25 @@ pub fn spawn_simulation_once(
         MeshMaterial3d(material.clone()),
     ));
 }
+
+
+pub fn update_simulation_gizmo(
+    mut gizmos: Gizmos,
+    query: Query<(&SimulationParams, &Transform)>,
+) {
+    for (params, transform) in &query {
+        let size = Vec3::splat(params.box_size);
+
+        let center = transform.translation
+            + Vec3::new(0.0, params.box_size * 0.5, 0.0);
+
+        gizmos.cube(
+            Transform {
+                translation: center,
+                rotation: transform.rotation,
+                scale: size,
+            },
+            LIME,
+        );
+    }
+}

@@ -1,5 +1,4 @@
 use bevy::{
-    color::palettes::css::WHITE, 
     dev_tools::fps_overlay::{
         FpsOverlayConfig, 
         FpsOverlayPlugin, 
@@ -76,10 +75,10 @@ fn main() {
         .add_plugins(EguiPlugin::default())
         .add_plugins(WorldInspectorPlugin::new())
         .init_state::<AppState>()
-        .insert_resource(WireframeConfig {
-            global: true,
-            default_color: WHITE.into(),
-        })
+        //.insert_resource(WireframeConfig {
+        //    global: true,
+        //    default_color: WHITE.into(),
+        //})
         .add_systems(OnEnter(AppState::Loading), spawn_loading_ui)
         .add_systems(OnExit(AppState::Loading), despawn_loading_ui)
         .add_plugins(config::SystemConfigPlugin)
