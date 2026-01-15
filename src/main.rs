@@ -12,6 +12,9 @@ use bevy::{
     prelude::*
 };
 
+use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::WorldInspectorPlugin};
+
+
 use crate::{
     app_state::{
         AppState, 
@@ -70,6 +73,8 @@ fn main() {
             MaterialPlugin::<ParticleMaterial>::default(),
             WireframePlugin::default(),
         ))
+        .add_plugins(EguiPlugin::default())
+        //.add_plugins(WorldInspectorPlugin::new())
         .init_state::<AppState>()
         .insert_resource(WireframeConfig {
             // The global wireframe config enables drawing of wireframes on every mesh,

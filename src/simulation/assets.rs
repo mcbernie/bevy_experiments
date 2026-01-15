@@ -3,9 +3,10 @@ use bevy::render::{
     extract_resource::ExtractResource, 
     render_resource::ShaderType
 };
+use bevy_inspector_egui::prelude::*;
 
-#[derive(Reflect, Resource, ExtractResource, ShaderType, Clone)]
-#[reflect(Resource)]
+#[derive(Reflect, Resource, ExtractResource, ShaderType, Clone, InspectorOptions)]
+#[reflect(Resource, InspectorOptions)]
 pub struct SimulationParams {
     pub box_size: f32,
     pub gravity: f32,

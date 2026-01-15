@@ -1,5 +1,6 @@
 
 use bevy::{prelude::*, render::{Render, RenderApp, RenderStartup, RenderSystems, extract_component::ExtractComponentPlugin, extract_resource::ExtractResourcePlugin, render_graph::RenderGraph}};
+use bevy_inspector_egui::quick::ResourceInspectorPlugin;
 //use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::ResourceInspectorPlugin};
 
 use super::assets::SimulationParams;
@@ -26,9 +27,8 @@ impl Plugin for SimulationPlugin {
         )
         .register_type::<SimulationParams>()
         .insert_resource(SimulationParams::default())
-        .add_plugins(ExtractComponentPlugin::<SimulationBuffers>::default());
-        //.add_plugins(EguiPlugin::default())
-        //.add_plugins(ResourceInspectorPlugin::<SimulationParams>::default());
+        .add_plugins(ExtractComponentPlugin::<SimulationBuffers>::default())
+        .add_plugins(ResourceInspectorPlugin::<SimulationParams>::default());
 
         let render_app = app.sub_app_mut(RenderApp);
 
