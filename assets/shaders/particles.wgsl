@@ -76,25 +76,38 @@ fn collision(@builtin(global_invocation_id) id: vec3<u32>) {
     var new_pos = pos;
     var new_vel = velocities_sorted[i].xyz;
 
+    if (end - start <= 1u) {
+        // keine Nachbarn
+        positions_out[i] = vec4<f32>(new_pos, positions_sorted[i].w);
+        velocities_out[i] = vec4<f32>(new_vel, velocities_sorted[i].w);
+        return;
+    }
+
+    if (end >= arrayLength(&positions_sorted)) {
+        // Out-of-bounds Schutz
+        positions_out[i] = vec4<f32>(new_pos, positions_sorted[i].w);
+        velocities_out[i] = vec4<f32>(new_vel, velocities_sorted[i].w);
+        return;
+    }
+
     for (var j = start; j < end; j++) {
         if (j == i) { continue; }
 
         let other_pos = positions_sorted[j].xyz;
 
-        let delta = new_pos - other_pos;
-        let dist = length(delta);
-        let min_dist = params.particle_radius * 2.0;
+    //    let delta = new_pos - other_pos;
+    //    let dist = length(delta);
+    //    let min_dist = params.particle_radius * 2.0;
 
-        if (dist < min_dist && dist > 0.0001) {
-            let normal = delta / dist;
-            let penetration = min_dist - dist;
+    //    if (dist < min_dist && dist > 0.0001) {
+    //        let normal = delta / dist;
+    //        let penetration = min_dist - dist;
 
-            // einfache PBD-Korrektur
-            new_pos += normal * penetration * 0.5;
-        }
+    //        // einfache PBD-Korrektur
+    //        new_pos += normal * penetration * 0.5;
+    //    }
     }
 
-    // WRITE (wichtig: in positions_out, NICHT sorted!)
     positions_out[i] = vec4<f32>(new_pos, positions_sorted[i].w);
     velocities_out[i] = vec4<f32>(new_vel, velocities_sorted[i].w);
 }
