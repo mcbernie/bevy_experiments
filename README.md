@@ -9,8 +9,8 @@ The project is currently far from reaching the level shown in the video.
 
 ## Simple "Usage"
 
-Inside `WorldInspector` we can update the SimulationParams inside a *Particle Simulation*
-Movement of Camera is done by *WASD*, *Space* for Up, *LShift* for Down and *L* for Lock / unlock mouse to camera.
+Inside `WorldInspector` we can update the SimulationParams inside a **Particle Simulation**
+Movement of Camera is done by **WASD**, **Space** for Up, **LShift** for Down and **L** for Lock / unlock mouse to camera.
 
 ## Current State
 
