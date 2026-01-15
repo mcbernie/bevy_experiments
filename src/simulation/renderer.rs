@@ -50,15 +50,12 @@ pub fn spawn_simulation_once(
 
     let vertex_count = PARTICLE_COUNT as usize * 6;
     let v_positions = vec![[0.0, 0.0, 0.0]; vertex_count];
-    let v_uvs = vec![[0.0, 0.0]; vertex_count];
 
     let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::RENDER_WORLD);
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, v_positions);
-    //mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, v_uvs);
 
     let mesh = meshes.add(mesh);
 
-    // --- Material liest direkt aus dem Compute-Buffer ---
     let material = materials.add(
         ParticleMaterial {
             positions: positions.clone(),
@@ -67,7 +64,6 @@ pub fn spawn_simulation_once(
             radius: 0.05,
         }
     );
-
 
     // --- Entity ---
     commands.spawn((
