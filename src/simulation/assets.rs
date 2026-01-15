@@ -1,13 +1,13 @@
 use bevy::prelude::*; 
+use bevy::render::extract_component::ExtractComponent;
 use bevy::render::{
-    extract_resource::ExtractResource, 
     render_resource::ShaderType
 };
 use bevy_inspector_egui::inspector_options::std_options::NumberDisplay;
 use bevy_inspector_egui::prelude::*;
 
-#[derive(Reflect, Resource, ExtractResource, ShaderType, Clone, InspectorOptions)]
-#[reflect(Resource, InspectorOptions)]
+#[derive(Reflect, Component, ExtractComponent, ShaderType, Clone, InspectorOptions)]
+#[reflect(Component, InspectorOptions)]
 pub struct SimulationParams {
     #[inspector(min = 1.0, max = 20.0, display = NumberDisplay::Slider)]
     pub box_size: f32,

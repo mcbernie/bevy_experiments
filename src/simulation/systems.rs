@@ -28,7 +28,7 @@ pub struct SimulationComputePipeline {
     pub layout: BindGroupLayoutDescriptor,
 }
 
-#[derive(Resource)]
+#[derive(Component)]
 pub struct SimulationUniform {
     pub buffer: Option<UniformBuffer<SimulationParams>>,
 }
@@ -36,17 +36,12 @@ pub struct SimulationUniform {
 /// Update the simulation uniform buffer if parameters have changed
 /// which represents the simulation parameters like gravity, box size, etc.
 pub fn update_simulation_uniform(
-    mut uniform: ResMut<SimulationUniform>,
-    params: Option<Res<SimulationParams>>,
     render_device: Res<RenderDevice>,
     render_queue: Res<RenderQueue>,
+    mut query: Query<(Entity, &SimulationParams, &mut SimulationUniform), Changed<SimulationParams>>,
 ) {
-    if params.is_none() {
-        return;
-    }
-    let params = params.unwrap();
-    if uniform.buffer.is_none() || params.is_changed() {
 
+    for (_entity, params, mut uniform) in &mut query {
         if let Some(buffer) = uniform.buffer.as_mut() {
             buffer.set(params.clone());
             buffer.write_buffer(&render_device, &render_queue);
@@ -56,7 +51,6 @@ pub fn update_simulation_uniform(
             uniform.buffer = Some(buffer);
         }
     }
-
 }
 
 /// init the compute pipeline for the simulation
@@ -162,28 +156,21 @@ pub fn prepare_simulation_bind_groups(
     mut commands: Commands,
     pipeline: Res<SimulationComputePipeline>,
     render_device: Res<RenderDevice>,
+    render_queue: Res<RenderQueue>,
     pipeline_cache: Res<PipelineCache>,
-    settings_uniform: Res<SimulationUniform>,
     storage_buffers: Res<RenderAssets<GpuShaderStorageBuffer>>, // <- Da legen wir den StorageBuffer ab
-    query: Query<(Entity, &SimulationBuffers), Without<PreparedSimulationBindGroup>>,
+    query: Query<(Entity, &SimulationBuffers, &SimulationParams), Without<PreparedSimulationBindGroup>>,
 ) {
     if query.is_empty() {
         return;
     }
-    if settings_uniform.buffer.is_none() {
-        return;
-    }
 
-    let uniform = settings_uniform
-        .buffer
-        .as_ref()
-        .expect("SimulationUniform not initialized yet");
-
-    for (entity, buffers) in &query {
+    for (entity, buffers, params) in &query {
         let positions = storage_buffers.get(&buffers.positions).unwrap();
         let velocities = storage_buffers.get(&buffers.velocities).unwrap();
         let spatial_keys = storage_buffers.get(&buffers.spatial_keys).unwrap();
-
+        let mut uniform_buffer = UniformBuffer::from(params.clone());
+        uniform_buffer.write_buffer(&render_device, &render_queue);
 
         // we need to create this for each pipeline...?
         let bind_group = render_device.create_bind_group(
@@ -204,13 +191,16 @@ pub fn prepare_simulation_bind_groups(
                 },
                 BindGroupEntry {
                     binding: 3,
-                    resource: uniform.buffer().unwrap().as_entire_binding(),
+                    resource: uniform_buffer.buffer().unwrap().as_entire_binding(),
                 },
             ],
         );
 
         commands.entity(entity).insert(
-            PreparedSimulationBindGroup { bind_group }
+            (
+                PreparedSimulationBindGroup { bind_group },
+                SimulationUniform { buffer: Some(uniform_buffer) },
+            )
         );
     }
 }

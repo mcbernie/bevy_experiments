@@ -56,6 +56,7 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
         }
     }
 
+    // extremly inefficient n^2 collision detection + response
     for (var j: u32 = 0u; j < arrayLength(&positions); j++) {
         if (j == i) {
             continue;

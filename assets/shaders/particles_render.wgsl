@@ -61,23 +61,31 @@ struct FragmentOut {
 
 @fragment
 fn fragment(in: VertexOut) -> FragmentOut {
-    // Fake-Normal (Kugelannahme aus UV)
-    let n = normalize(vec3(in.uv * 2.0 - 1.0, 1.0));
+    // we want a sphere, not a square
+    // so discard pixels outside the circle
+    let p = in.uv * 2.0 - 1.0;
+    let r2 = dot(p, p);
+    if (r2 > 1.0) {
+        discard;
+    }
 
-    // Simple Lichtannahme (von oben vorne)
+    // normal for a sphere ( fake normal )
+    let z = sqrt(1.0 - r2);
+    let n = normalize(vec3(p.x, p.y, z));
+
+
+    // simple light, not using real lighting system
     let light_dir = normalize(vec3(0.3, 0.8, 0.4));
     let diffuse = clamp(dot(n, light_dir), 0.0, 1.0);
 
-    // Geschwindigkeit → Farbe
+    // color based on velocity
     let speed = length(in.velocity);
     let t = clamp(speed / 4.0, 0.0, 1.0);
     let base_color = speed_to_color(t);
-
-    // Wasserartiger Look
     let color = base_color * (0.4 + 0.6 * diffuse);
 
     var out: FragmentOut;
-    out.color = vec4(color, 0.9);
+    out.color = vec4(color, 1.0);
     return out;
 }
 

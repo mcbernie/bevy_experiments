@@ -1,12 +1,8 @@
 use bevy::{
-    prelude::*, 
-    asset::RenderAssetUsages, 
-    mesh::PrimitiveTopology, 
-    camera::visibility::NoFrustumCulling, 
-    render::storage::ShaderStorageBuffer
+    asset::RenderAssetUsages, camera::visibility::NoFrustumCulling, color::palettes::css::{BLACK, LIME}, mesh::PrimitiveTopology, pbr::wireframe::{Wireframe, WireframeColor}, prelude::*, render::storage::ShaderStorageBuffer
 };
 
-use crate::PARTICLE_COUNT;
+use crate::{PARTICLE_COUNT, simulation::assets::SimulationParams};
 
 use super::{
     material::ParticleMaterial, 
@@ -58,27 +54,30 @@ pub fn spawn_simulation_once(
 
     let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::RENDER_WORLD);
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, v_positions);
-    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, v_uvs);
+    //mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, v_uvs);
 
     let mesh = meshes.add(mesh);
 
     // --- Material liest direkt aus dem Compute-Buffer ---
     let material = materials.add(
-            ParticleMaterial {
-                positions: positions.clone(),
-                velocities: velocities.clone(),
-                color: Vec4::new(0.2, 0.5, 1.0, 1.0),
-                radius: 0.05,
-            }
-        );
+        ParticleMaterial {
+            positions: positions.clone(),
+            velocities: velocities.clone(),
+            color: Vec4::new(0.2, 0.5, 1.0, 1.0),
+            radius: 0.05,
+        }
+    );
+
 
     // --- Entity ---
     commands.spawn((
+        Name::new("Particle Simulation"),
         SimulationBuffers {
             positions,
             velocities,
             spatial_keys,
         },
+        SimulationParams::default(),
         Transform::IDENTITY,
         GlobalTransform::IDENTITY,
         InheritedVisibility::VISIBLE,

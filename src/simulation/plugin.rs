@@ -23,15 +23,13 @@ pub struct SimulationPlugin;
 impl Plugin for SimulationPlugin {
     fn build(&self, app: &mut App) {
 
-        app.add_plugins(ExtractResourcePlugin::<SimulationParams>::default())
+        app.add_plugins(ExtractComponentPlugin::<SimulationParams>::default())
         .add_systems(
             Update,
             spawn_simulation_once.run_if(run_once),
         )
         .register_type::<SimulationParams>()
-        .insert_resource(SimulationParams::default())
-        .add_plugins(ExtractComponentPlugin::<SimulationBuffers>::default())
-        .add_plugins(ResourceInspectorPlugin::<SimulationParams>::default());
+        .add_plugins(ExtractComponentPlugin::<SimulationBuffers>::default());
 
         load_internal_asset!(
             app,
@@ -42,7 +40,6 @@ impl Plugin for SimulationPlugin {
 
         let render_app = app.sub_app_mut(RenderApp);
 
-        render_app.insert_resource(SimulationUniform { buffer: None });
         render_app.insert_resource(SimulationTime { accumulator: 0.0 });
         render_app
             // Extraction synchronisiere Daten von der GameApp zur RenderApp
