@@ -4,17 +4,15 @@ use bevy::prelude::*;
 use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_resource::binding_types::uniform_buffer;
 use bevy::render::render_resource::{
-    BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntries, BindGroupLayoutEntry, BindingType, BufferBindingType, CachedComputePipelineId, CommandEncoderDescriptor, ComputePassDescriptor, ComputePipelineDescriptor, PipelineCache, PushConstantRange, ShaderStages, UniformBuffer
+    BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntries, BindGroupLayoutEntry, BindingType, BufferBindingType, BufferDescriptor, BufferUsages, CachedComputePipelineId, CommandEncoderDescriptor, ComputePassDescriptor, ComputePipelineDescriptor, PipelineCache, PushConstantRange, ShaderStages, UniformBuffer
 };
 use bevy::render::renderer::{RenderDevice, RenderQueue};
 use bevy::render::storage::GpuShaderStorageBuffer;
 
-use crate::PARTICLE_COUNT;
+use crate::{FIXED_DT, PARTICLE_COUNT};
 use crate::simulation::assets::SimulationParams;
-use crate::simulation::components::{SimulationBuffers, PreparedSimulationBindGroup};
+use crate::simulation::components::{AdvancedSimulationBuffers, PreparedSimulationBindGroup, SimulationBuffers};
 
-const FIXED_DT: f32 = 1.0 / 120.0;
-const MAX_STEPS: u32 = 4;
 
 #[derive(Resource)]
 pub struct SimulationTime {
@@ -100,6 +98,26 @@ pub fn init_compute_pipeline(
                     },
                     count: None,
                 },
+                BindGroupLayoutEntry {
+                    binding: u32::MAX,
+                    visibility: ShaderStages::COMPUTE,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: u32::MAX,
+                    visibility: ShaderStages::COMPUTE,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
                 uniform_buffer::<SimulationParams>(false).build(u32::MAX, ShaderStages::COMPUTE),
             ],
         )
@@ -127,18 +145,21 @@ pub fn init_compute_pipeline(
         ComputePipelineDescriptor {
             label: Some("spatial_hash_pipeline".into()),
             layout: vec![bind_group_layout.clone()],
-            // doenst need push constants
-            push_constant_ranges: vec![
-                PushConstantRange {
-                    stages: ShaderStages::COMPUTE,
-                    range: 0..4, // für f32 (delta_time)
-                }
-            ],
             shader: spatial_hash_shader,
             entry_point: Some("update_spatial_hash".into()),
             ..Default::default()
         }
     );
+
+    /*let spatial_hash_pipeline = pipeline_cache.queue_compute_pipeline(
+        ComputePipelineDescriptor {
+            label: Some("spatial_hash_pipeline".into()),
+            layout: vec![bind_group_layout.clone()],
+            shader: spatial_hash_shader,
+            entry_point: Some("update_spatial_hash".into()),
+            ..Default::default()
+        }
+    );*/
 
     // jetzt wollen wir natürlich den pipeline handle / id speichern und
     // auch das bind_group_layout
@@ -166,11 +187,35 @@ pub fn prepare_simulation_bind_groups(
     }
 
     for (entity, buffers, params) in &query {
+        warn!("run !");
         let positions = storage_buffers.get(&buffers.positions).unwrap();
         let velocities = storage_buffers.get(&buffers.velocities).unwrap();
-        let spatial_keys = storage_buffers.get(&buffers.spatial_keys).unwrap();
         let mut uniform_buffer = UniformBuffer::from(params.clone());
         uniform_buffer.write_buffer(&render_device, &render_queue);
+
+        //let n = params.num_particles as usize;
+        let n = PARTICLE_COUNT as usize;
+
+        let spatial_keys = render_device.create_buffer(&BufferDescriptor {
+            label: Some("spatial_keys"),
+            size: (n * std::mem::size_of::<u32>()) as u64,
+            usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC | BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        let spatial_counts = render_device.create_buffer(&BufferDescriptor {
+            label: Some("spatial_counts"),
+            size: (n * std::mem::size_of::<u32>()) as u64,
+            usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC | BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        let spatial_offsets = render_device.create_buffer(&BufferDescriptor {
+            label: Some("spatial_offsets"),
+            size: (n * std::mem::size_of::<u32>()) as u64,
+            usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC | BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
 
         // we need to create this for each pipeline...?
         let bind_group = render_device.create_bind_group(
@@ -187,10 +232,18 @@ pub fn prepare_simulation_bind_groups(
                 },
                 BindGroupEntry {
                     binding: 2,
-                    resource: spatial_keys.buffer.as_entire_binding(),
+                    resource: spatial_keys.as_entire_binding(),
                 },
                 BindGroupEntry {
                     binding: 3,
+                    resource: spatial_counts.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 4,
+                    resource: spatial_offsets.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 5,
                     resource: uniform_buffer.buffer().unwrap().as_entire_binding(),
                 },
             ],
@@ -200,6 +253,11 @@ pub fn prepare_simulation_bind_groups(
             (
                 PreparedSimulationBindGroup { bind_group },
                 SimulationUniform { buffer: Some(uniform_buffer) },
+                AdvancedSimulationBuffers {
+                    spatial_keys,
+                    spatial_sort_counts: spatial_counts,
+                    spatial_sort_offsets: spatial_offsets,
+                },
             )
         );
     }

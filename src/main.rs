@@ -25,6 +25,7 @@ use crate::{
 };
 
 pub const PARTICLE_COUNT: u32 = 2000;
+pub const FIXED_DT: f32 = 1.0 / 120.0;
 
 mod app_state;
 mod config;

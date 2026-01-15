@@ -3,7 +3,7 @@ use bevy::{asset::{load_internal_asset, uuid_handle}, prelude::*, render::{Rende
 use bevy_inspector_egui::quick::ResourceInspectorPlugin;
 //use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::ResourceInspectorPlugin};
 
-use crate::simulation::renderer::update_simulation_gizmo;
+use crate::simulation::{node::{SimulationNode, SimulationSystemLabel}, renderer::update_simulation_gizmo};
 
 use super::assets::SimulationParams;
 use super::components::SimulationBuffers; 
@@ -55,7 +55,7 @@ impl Plugin for SimulationPlugin {
                 Render,
                 (
                     update_simulation_uniform,
-                    run_compute,
+                    //run_compute,
                 )
             )
             .add_systems(Render, 
@@ -65,9 +65,11 @@ impl Plugin for SimulationPlugin {
         
         // instead of using a compute system, i try to create a graph node
         // can a node works if we need to query components short before dispatch_workgroups?
-        //let mut render_graph = render_app.world_mut().resource_mut::<RenderGraph>();
-        //render_graph.add_node(SimulationSystemLabel, SimulationNode::default());
-        //render_graph.add_node_edge(SimulationSystemLabel, bevy::render::graph::CameraDriverLabel).unwrap();
+        let mut render_graph = render_app.world_mut().resource_mut::<RenderGraph>();
+        render_graph.add_node(SimulationSystemLabel, SimulationNode::default());
+        render_graph.add_node_edge(SimulationSystemLabel, bevy::render::graph::CameraDriverLabel);
+
+
 
     }
 }

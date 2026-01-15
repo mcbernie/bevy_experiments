@@ -1,5 +1,5 @@
 use bevy::{
-    asset::RenderAssetUsages, camera::visibility::NoFrustumCulling, color::palettes::css::{BLACK, LIME}, mesh::PrimitiveTopology, pbr::wireframe::{Wireframe, WireframeColor}, prelude::*, render::storage::ShaderStorageBuffer
+    asset::RenderAssetUsages, color::palettes::css::LIME, mesh::PrimitiveTopology, prelude::*, render::storage::ShaderStorageBuffer
 };
 
 use crate::{PARTICLE_COUNT, simulation::assets::SimulationParams};
@@ -71,7 +71,6 @@ pub fn spawn_simulation_once(
         SimulationBuffers {
             positions,
             velocities,
-            spatial_keys,
         },
         SimulationParams::default(),
         Transform::IDENTITY,
