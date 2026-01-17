@@ -1,22 +1,16 @@
 
 use bevy::{asset::{load_internal_asset, uuid_handle}, prelude::*, render::{Render, RenderApp, RenderStartup, RenderSystems, extract_component::ExtractComponentPlugin, render_graph::RenderGraph}};
 // use bevy_inspector_egui::quick::ResourceInspectorPlugin;
-//use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::ResourceInspectorPlugin};
+// use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::ResourceInspectorPlugin};
 
-use crate::simulation::{node::{SimulationNode, SimulationSystemLabel}, renderer::update_simulation_gizmo, systems::{SimulationSwapState, init_per_component, swap_simulation_buffers}};
+use crate::simulation::{node::{SimulationNode1, SimulationSystemLabel1}, renderer::update_simulation_gizmo, sim::{init_compute_pipeline, init_simulation_system, prepare_simulation_bind_groups}, systems::update_simulation_uniform};
 
 use super::assets::SimulationParams;
 use super::components::SimulationBuffers; 
 use super::renderer::spawn_simulation_once;
-use super::systems::{
-    SimulationTime, 
-    update_simulation_uniform,
-    init_compute_pipeline, 
-    prepare_simulation_bind_groups, 
-};
 
-const SIM_DATA: Handle<Shader> =
-    uuid_handle!("990ee5ac-3d4a-4593-841f-6b46f02abcb4");
+//const SIM_DATA: Handle<Shader> =
+//    uuid_handle!("990ee5ac-3d4a-4593-841f-6b46f02abcb4");
 
 pub struct SimulationPlugin;
 
@@ -34,17 +28,16 @@ impl Plugin for SimulationPlugin {
         .register_type::<SimulationParams>()
         .add_plugins(ExtractComponentPlugin::<SimulationBuffers>::default());
 
-        load_internal_asset!(
-            app,
-            SIM_DATA,
-            "shaders/sim_data.wgsl",
-            Shader::from_wgsl
-        );
+        // load_internal_asset!(
+        //     app,
+        //     SIM_DATA,
+        //     "shaders/sim_data.wgsl",
+        //     Shader::from_wgsl
+        // );
 
         let render_app = app.sub_app_mut(RenderApp);
 
-        render_app.insert_resource(SimulationTime { accumulator: 0.0 });
-        render_app.insert_resource(SimulationSwapState::default());
+        //render_app.insert_resource(SimulationSwapState::default());
         render_app
             // Extraction synchronisiere Daten von der GameApp zur RenderApp
             .add_systems(RenderStartup,
@@ -55,12 +48,11 @@ impl Plugin for SimulationPlugin {
                 Render,
                 (
                     update_simulation_uniform,
-                    //run_compute,
                 )
             )
             .add_systems(Render, (
-                swap_simulation_buffers.before(RenderSystems::PrepareBindGroups),
-                init_per_component
+                //swap_simulation_buffers.before(RenderSystems::PrepareBindGroups),
+                init_simulation_system
                     .in_set(RenderSystems::PrepareBindGroups)
                     .before(prepare_simulation_bind_groups),
 
@@ -71,8 +63,8 @@ impl Plugin for SimulationPlugin {
         // instead of using a compute system, i try to create a graph node
         // can a node works if we need to query components short before dispatch_workgroups?
         let mut render_graph = render_app.world_mut().resource_mut::<RenderGraph>();
-        render_graph.add_node(SimulationSystemLabel, SimulationNode::default());
-        render_graph.add_node_edge(SimulationSystemLabel, bevy::render::graph::CameraDriverLabel);
+        render_graph.add_node(SimulationSystemLabel1, SimulationNode1::default());
+        render_graph.add_node_edge(SimulationSystemLabel1, bevy::render::graph::CameraDriverLabel);
 
 
 

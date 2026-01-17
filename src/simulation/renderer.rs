@@ -34,26 +34,15 @@ pub fn spawn_simulation_once(
         vel_data.push([0.0, 0.0, 0.0, 0.0]);
     }
 
-    let positions = [storage_buffers.add(
-            ShaderStorageBuffer::from(pos_data.clone())
-        ),
-        storage_buffers.add(
-            ShaderStorageBuffer::from(pos_data.clone())
-        )
-    ];
+    let positions = storage_buffers.add(
+            ShaderStorageBuffer::from(pos_data.clone()));
 
-    let velocities = [storage_buffers.add(
-            ShaderStorageBuffer::from(vel_data.clone())
-        ),
-        storage_buffers.add(
-            ShaderStorageBuffer::from(vel_data.clone())
-        )
-    ];
+    let velocities = storage_buffers.add(
+            ShaderStorageBuffer::from(vel_data.clone()));
 
-    let spk_buffer = ShaderStorageBuffer::from(vec![0u32; PARTICLE_COUNT as usize]);
-
-    let spatial_keys = storage_buffers.add(
-        spk_buffer
+    let debug_buffer = ShaderStorageBuffer::from(vec![0u32; PARTICLE_COUNT as usize]);
+    let debug_buffer_handle = storage_buffers.add(
+        debug_buffer
     );
 
     let vertex_count = PARTICLE_COUNT as usize * 6;
@@ -66,9 +55,9 @@ pub fn spawn_simulation_once(
 
     let material = materials.add(
         ParticleMaterial {
-            positions: positions[0].clone(), // currently using only one buffer for rendering
-            velocities: velocities[0].clone(),
-            spatial_keys: spatial_keys.clone(),
+            positions: positions.clone(), // currently using only one buffer for rendering
+            velocities: velocities.clone(),
+            debug_buffer: debug_buffer_handle.clone(),
             color: Vec4::new(0.2, 0.5, 1.0, 1.0),
             radius: 0.05,
         }
@@ -80,7 +69,7 @@ pub fn spawn_simulation_once(
         SimulationBuffers {
             positions,
             velocities,
-            spatial_keys,
+            debug_buffer: debug_buffer_handle.clone(),
             active_index: 0,
         },
         SimulationParams::default(),
@@ -98,10 +87,10 @@ pub fn update_simulation_gizmo(
     query: Query<(&SimulationParams, &Transform)>,
 ) {
     for (params, transform) in &query {
-        let size = Vec3::splat(params.box_size);
+        let size = params.bounds_size;
 
         let center = transform.translation
-            + Vec3::new(0.0, params.box_size * 0.5, 0.0);
+            + Vec3::new(0.0, params.bounds_size.y * 0.5, 0.0);
 
         gizmos.cube(
             Transform {

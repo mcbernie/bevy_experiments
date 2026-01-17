@@ -23,7 +23,7 @@ pub struct ParticleMaterial {
     
     // for debugging
     #[storage(2, read_only)]
-    pub spatial_keys: Handle<ShaderStorageBuffer>,
+    pub debug_buffer: Handle<ShaderStorageBuffer>,
 
     #[uniform(3)]
     pub color: Vec4,

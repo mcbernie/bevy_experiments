@@ -1,17 +1,29 @@
 use bevy::prelude::*; 
 use bevy::render::extract_component::ExtractComponent;
-use bevy::render::render_resource::Buffer;
+use bevy::render::render_resource::{Buffer, UniformBuffer};
 use bevy::render::{
     render_resource::BindGroup, 
     storage::ShaderStorageBuffer, 
 };
 
+use crate::simulation::assets::SimulationParams;
+
+// created inside main app, used in render app
+// connection between simulation and rendering
 #[derive(Component, ExtractComponent, Clone)]
 pub struct SimulationBuffers {
-    pub positions: [Handle<ShaderStorageBuffer>; 2],
-    pub velocities: [Handle<ShaderStorageBuffer>; 2],
-    pub spatial_keys: Handle<ShaderStorageBuffer>,
+    pub positions: Handle<ShaderStorageBuffer>,
+    pub velocities: Handle<ShaderStorageBuffer>,
+    pub debug_buffer: Handle<ShaderStorageBuffer>,
     pub active_index: u32, // 0 oder 1 für double buffering
+}
+
+#[derive(Component, Clone)]
+pub struct InternalSimulationBuffers {
+    pub predicted_positions: Buffer,
+    pub spatial_keys: Buffer,
+    pub spatial_offsets: Buffer,
+    pub sorted_indices: Buffer,
 }
 
 #[derive(Component, ExtractComponent, Clone)]
@@ -22,6 +34,10 @@ pub struct AdvancedSimulationBuffers {
     pub spatial_sort_offsets: Buffer,
     pub spatial_sorted_indices: Buffer,
     pub write_offsets: Buffer,
+
+    pub spatial_keys: Buffer,
+    pub spatial_indices: Buffer,
+    pub spatial_offsets: Buffer
 }
 
 // lebt nur in der RenderApp
@@ -29,5 +45,11 @@ pub struct AdvancedSimulationBuffers {
 pub struct PreparedSimulationBindGroup {
     pub bind_group: BindGroup,
 }
+
+// lebt nur in der RenderApp
+#[derive(Component)]
+pub struct SimulationUniform (
+    pub UniformBuffer<SimulationParams>
+);
 
 
