@@ -11,7 +11,7 @@ use bevy::{
     prelude::*
 };
 
-use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::WorldInspectorPlugin};
+use bevy_inspector_egui::{bevy_egui::{EguiPlugin, EguiPrimaryContextPass}};
 
 
 use crate::{
@@ -21,7 +21,7 @@ use crate::{
         despawn_loading_ui,
         spawn_loading_ui
     }, 
-    base::create_plane_mesh, simulation::material::ParticleMaterial
+    base::create_plane_mesh, simulation::{material::ParticleMaterial, simulation_params_ui_systems}
 };
 
 pub const PARTICLE_COUNT: u32 = 4000;
@@ -74,7 +74,7 @@ fn main() {
             WireframePlugin::default(),
         ))
         .add_plugins(EguiPlugin::default())
-        .add_plugins(WorldInspectorPlugin::new())
+        //.add_plugins(WorldInspectorPlugin::new())
         .init_state::<AppState>()
         //.insert_resource(WireframeConfig {
         //    global: true,
@@ -90,6 +90,7 @@ fn main() {
         .add_systems(Update, update_colors)
         .add_systems(Update, exit_on_esc)
         .add_systems(Update, advance_to_ingame_when_ready.run_if(in_state(AppState::Loading)))
+        .add_systems(EguiPrimaryContextPass, simulation_params_ui_systems)
 
         .insert_resource(ClearColor(Color::BLACK))
         .run();

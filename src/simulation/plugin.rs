@@ -1,9 +1,9 @@
 
-use bevy::{asset::{load_internal_asset, uuid_handle}, prelude::*, render::{Render, RenderApp, RenderStartup, RenderSystems, extract_component::ExtractComponentPlugin, render_graph::RenderGraph}};
+use bevy::{asset::{load_internal_asset, uuid_handle}, prelude::*, render::{Render, RenderApp, RenderStartup, RenderSystems, extract_component::ExtractComponentPlugin, graph::CameraDriverLabel, render_graph::RenderGraph}};
 // use bevy_inspector_egui::quick::ResourceInspectorPlugin;
 // use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::ResourceInspectorPlugin};
 
-use crate::simulation::{node::{SimulationNode1, SimulationSystemLabel1}, renderer::update_simulation_gizmo, sim::{init_compute_pipeline, init_simulation_system, prepare_simulation_bind_groups}, systems::update_simulation_uniform};
+use crate::simulation::{ node::{FinalSimulationNode, FinalSimulationSystemLabel, StartSimulationNode, StartSimulationSystemLabel}, renderer::update_simulation_gizmo, sim::{init_compute_pipeline, init_simulation_system, prepare_simulation_bind_groups}, systems::update_simulation_uniform};
 
 use super::assets::SimulationParams;
 use super::components::SimulationBuffers; 
@@ -63,8 +63,10 @@ impl Plugin for SimulationPlugin {
         // instead of using a compute system, i try to create a graph node
         // can a node works if we need to query components short before dispatch_workgroups?
         let mut render_graph = render_app.world_mut().resource_mut::<RenderGraph>();
-        render_graph.add_node(SimulationSystemLabel1, SimulationNode1::default());
-        render_graph.add_node_edge(SimulationSystemLabel1, bevy::render::graph::CameraDriverLabel);
+        render_graph.add_node(StartSimulationSystemLabel, StartSimulationNode::default());
+        render_graph.add_node(FinalSimulationSystemLabel, FinalSimulationNode::default());
+        render_graph.add_node_edge(StartSimulationSystemLabel, FinalSimulationSystemLabel);
+        render_graph.add_node_edge(FinalSimulationSystemLabel, CameraDriverLabel)
 
 
 

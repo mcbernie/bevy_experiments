@@ -8,14 +8,13 @@ use crate::{FIXED_DT, PARTICLE_COUNT};
 
 use super::components::PreparedSimulationBindGroup;
 
-// Dont ask my why i named it SimulationNode1 and SimulationSystemLabel1...
 #[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
-pub struct SimulationSystemLabel1;
+pub struct StartSimulationSystemLabel;
 
 #[derive(Default)]
-pub struct SimulationNode1;
+pub struct StartSimulationNode;
 
-impl Node for SimulationNode1 {
+impl Node for StartSimulationNode {
     fn run(
         &self,
         _graph: &mut RenderGraphContext,
@@ -36,14 +35,10 @@ impl Node for SimulationNode1 {
             pipeline_cache.get_compute_pipeline(pipelines.spatial_hash)
         else { return Ok(()); };
 
-        let Some(update_positions) =
-            pipeline_cache.get_compute_pipeline(pipelines.update_positions)
-        else { return Ok(()); };
-
         let mut pass = render_context
             .command_encoder()
             .begin_compute_pass(&ComputePassDescriptor {
-                label: Some("simulation_compute"),
+                label: Some("begin_simulation_compute"),
                 ..Default::default()
             });
 
@@ -58,7 +53,47 @@ impl Node for SimulationNode1 {
             // 2. Spatial hash
             pass.set_pipeline(spatial_hash);
             pass.dispatch_workgroups((PARTICLE_COUNT + 255) / 256, 1, 1);
+            
+        }
 
+        Ok(())
+    }
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
+pub struct FinalSimulationSystemLabel;
+
+#[derive(Default)]
+pub struct FinalSimulationNode;
+
+impl Node for FinalSimulationNode {
+    fn run(
+        &self,
+        _graph: &mut RenderGraphContext,
+        render_context: &mut RenderContext,
+        world: &World,
+    ) -> Result<(), NodeRunError> {
+        let pipeline_cache = world.resource::<PipelineCache>();
+        let pipelines = world.resource::<SimulationComputePipeline>();
+        let Some(mut bind_groups) = world.try_query::<(Entity, &PreparedSimulationBindGroup)>()
+        else {
+            return Ok(());
+        };
+
+
+        let Some(update_positions) =
+            pipeline_cache.get_compute_pipeline(pipelines.update_positions)
+        else { return Ok(()); };
+
+        let mut pass = render_context
+            .command_encoder()
+            .begin_compute_pass(&ComputePassDescriptor {
+                label: Some("final_simulation_compute"),
+                ..Default::default()
+            });
+
+        for (_, bg) in bind_groups.iter(world) {
+            pass.set_bind_group(0, &bg.bind_group, &[]);
 
             // final step: Update positions
             pass.set_pipeline(update_positions);
