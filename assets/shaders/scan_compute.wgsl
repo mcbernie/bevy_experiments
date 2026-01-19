@@ -6,20 +6,20 @@ const ITEMS_PER_GROUP: u32 = 512u; // 2 * GROUP_SIZE
 @group(0) @binding(0)
 var<storage, read_write> elements: array<u32>;
 
-@group(0) @binding(1)
+@group(1) @binding(0)
 var<storage, read_write> groupSums: array<u32>;
 
-@group(0) @binding(2)
+@group(2) @binding(0)
 var<uniform> itemCount: u32;
 
 // Shared memory
-var<workgroup> temp: array<u32, 512>;
+var<workgroup> temp: array<u32, ITEMS_PER_GROUP>;
 
 
 // ------------------------------------------------------------
 // BlockScan: exclusive prefix sum inside one workgroup
 // ------------------------------------------------------------
-@compute @workgroup_size(256, 1, 1)
+@compute @workgroup_size(GROUP_SIZE, 1, 1)
 fn block_scan(
     @builtin(global_invocation_id) gid: vec3<u32>,
     @builtin(local_invocation_id)  lid: vec3<u32>,
@@ -43,20 +43,20 @@ fn block_scan(
 
     // Up-sweep (reduce)
     var offset: u32 = 1u;
-    var active: u32 = GROUP_SIZE;
+    var active_count: u32 = GROUP_SIZE;
 
     loop {
         workgroupBarrier();
 
-        if (t < active) {
+        if (t < active_count) {
             let ia = offset * (localA + 1u) - 1u;
             let ib = offset * (localB + 1u) - 1u;
             temp[ib] = temp[ia] + temp[ib];
         }
 
         offset *= 2u;
-        active /= 2u;
-        if (active == 0u) { break; }
+        active_count /= 2u;
+        if (active_count == 0u) { break; }
     }
 
     // Store block sum and prepare exclusive scan
@@ -66,12 +66,12 @@ fn block_scan(
     }
 
     // Down-sweep
-    active = 1u;
+    active_count = 1u;
     loop {
         workgroupBarrier();
         offset /= 2u;
 
-        if (t < active) {
+        if (t < active_count) {
             let ia = offset * (localA + 1u) - 1u;
             let ib = offset * (localB + 1u) - 1u;
             let s = temp[ia] + temp[ib];
@@ -79,8 +79,8 @@ fn block_scan(
             temp[ib] = s;
         }
 
-        active *= 2u;
-        if (active > GROUP_SIZE) { break; }
+        active_count *= 2u;
+        if (active_count > GROUP_SIZE) { break; }
     }
 
     workgroupBarrier();
@@ -94,7 +94,7 @@ fn block_scan(
 // ------------------------------------------------------------
 // BlockCombine: add scanned group offsets to each element
 // ------------------------------------------------------------
-@compute @workgroup_size(256, 1, 1)
+@compute @workgroup_size(GROUP_SIZE, 1, 1)
 fn block_combine(
     @builtin(global_invocation_id) gid: vec3<u32>,
     @builtin(workgroup_id)         wid: vec3<u32>,

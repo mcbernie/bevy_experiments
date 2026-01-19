@@ -6,6 +6,7 @@ use bevy::render::renderer::{RenderContext, RenderDevice};
 
 use crate::PARTICLE_COUNT;
 use crate::simulation::components::AdvancedSimulationBuffers;
+use crate::simulation::gpu_sort::InternalCountSortBuffers;
 
 
 #[derive(Resource)]
@@ -128,15 +129,15 @@ pub fn prepare_spatial_hash_bind_groups(
     pipeline: Res<SpatialHashComputePipeline>,
     render_device: Res<RenderDevice>,
     pipeline_cache: Res<PipelineCache>,
-    query: Query<(Entity, &AdvancedSimulationBuffers), With<AdvancedSimulationBuffers>>,
+    query: Query<(Entity, &InternalCountSortBuffers), With<InternalCountSortBuffers>>,
 ) {
     if query.is_empty() {
         return;
     }
 
-    for (entity, advanced_buffers) in &query {
+    for (entity, internal_sort_buffers) in &query {
 
-        let sorted_keys = &advanced_buffers.spatial_sorted_indices;
+        let sorted_keys = &internal_sort_buffers.sorted_keys;
         let offsets = &advanced_buffers.spatial_sort_offsets;
         //let uniform_buffer = simulation_uniform.buffer.as_ref().unwrap();
 

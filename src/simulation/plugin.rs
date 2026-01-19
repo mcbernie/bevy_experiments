@@ -3,7 +3,7 @@ use bevy::{asset::{load_internal_asset, uuid_handle}, prelude::*, render::{Rende
 // use bevy_inspector_egui::quick::ResourceInspectorPlugin;
 // use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::ResourceInspectorPlugin};
 
-use crate::simulation::{ node::{FinalSimulationNode, FinalSimulationSystemLabel, StartSimulationNode, StartSimulationSystemLabel}, renderer::update_simulation_gizmo, sim::{init_compute_pipeline, init_simulation_system, prepare_simulation_bind_groups}, systems::update_simulation_uniform};
+use crate::simulation::{ gpu_sort::{CountSortLabel, CountSortNode, init_count_sort_compute_pipeline, init_count_sort_system, prepare_count_sort_bind_groups}, node::{FinalSimulationNode, FinalSimulationSystemLabel, StartSimulationNode, StartSimulationSystemLabel}, renderer::update_simulation_gizmo, sim::{init_compute_pipeline, init_simulation_system, prepare_simulation_bind_groups}, systems::update_simulation_uniform};
 
 use super::assets::SimulationParams;
 use super::components::SimulationBuffers; 
@@ -41,7 +41,7 @@ impl Plugin for SimulationPlugin {
         render_app
             // Extraction synchronisiere Daten von der GameApp zur RenderApp
             .add_systems(RenderStartup,
-                init_compute_pipeline,
+                (init_compute_pipeline, init_count_sort_compute_pipeline),
 
             )
             .add_systems(
@@ -56,7 +56,14 @@ impl Plugin for SimulationPlugin {
                     .in_set(RenderSystems::PrepareBindGroups)
                     .before(prepare_simulation_bind_groups),
 
+                init_count_sort_system
+                    .in_set(RenderSystems::PrepareBindGroups)
+                    .before(prepare_count_sort_bind_groups).after(init_simulation_system),
+
                 prepare_simulation_bind_groups
+                    .in_set(RenderSystems::PrepareBindGroups),
+
+                prepare_count_sort_bind_groups
                     .in_set(RenderSystems::PrepareBindGroups),
             ));
         
@@ -64,8 +71,10 @@ impl Plugin for SimulationPlugin {
         // can a node works if we need to query components short before dispatch_workgroups?
         let mut render_graph = render_app.world_mut().resource_mut::<RenderGraph>();
         render_graph.add_node(StartSimulationSystemLabel, StartSimulationNode::default());
+        render_graph.add_node(CountSortLabel, CountSortNode::default());
         render_graph.add_node(FinalSimulationSystemLabel, FinalSimulationNode::default());
-        render_graph.add_node_edge(StartSimulationSystemLabel, FinalSimulationSystemLabel);
+        render_graph.add_node_edge(StartSimulationSystemLabel, CountSortLabel);
+        render_graph.add_node_edge(CountSortLabel, FinalSimulationSystemLabel);
         render_graph.add_node_edge(FinalSimulationSystemLabel, CameraDriverLabel)
 
 

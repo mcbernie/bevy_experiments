@@ -6,8 +6,8 @@ mod resources;
 mod systems;
 mod assets;
 mod node;
-//mod spatial_hash;
-//mod gpu_sort;
+mod spatial_hash;
+mod gpu_sort;
 mod sim;
 mod helper;
 
