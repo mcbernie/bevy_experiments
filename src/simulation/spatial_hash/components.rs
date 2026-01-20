@@ -1,11 +1,6 @@
-use bevy::{prelude::*, render::render_resource::{BindGroup, Buffer}};
+use bevy::{prelude::*, render::render_resource::BindGroup};
 
 #[derive(Component)]
 pub struct PreparedSpatialHashComputeBindGroup {
     pub bind_group: BindGroup,
-}
-
-#[derive(Component, Clone)]
-pub struct InternalSpatialHashBuffers {
-    pub spatial_offsets: Buffer,
 }

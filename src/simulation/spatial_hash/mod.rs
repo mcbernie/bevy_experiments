@@ -1,5 +1,4 @@
 mod nodes;
-mod offsets;
 mod components;
 mod resources;
 mod systems;

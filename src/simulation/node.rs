@@ -1,8 +1,11 @@
 use bevy::prelude::*;
+use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_resource::{ComputePassDescriptor, PipelineCache};
 use bevy::render::renderer::RenderContext;
 use bevy::render::render_graph::{Node, NodeRunError, RenderGraphContext, RenderLabel};
+use bevy::render::storage::GpuShaderStorageBuffer;
 
+use crate::simulation::components::InternalSimulationBuffers;
 use crate::simulation::resources::SimulationComputePipeline;
 use crate::{FIXED_DT, PARTICLE_COUNT};
 
@@ -43,15 +46,16 @@ impl Node for StartSimulationNode {
             });
 
         for (_, bg) in bind_groups.iter(world) {
-            pass.set_bind_group(0, &bg.bind_group, &[]);
 
             // 1. External forces / integration
             pass.set_pipeline(external_forces);
             pass.set_push_constants(0, bytemuck::bytes_of(&FIXED_DT));
+            pass.set_bind_group(0, &bg.bind_group, &[]);
             pass.dispatch_workgroups((PARTICLE_COUNT + 255) / 256, 1, 1);
 
             // 2. Spatial hash
             pass.set_pipeline(spatial_hash);
+            pass.set_bind_group(0, &bg.bind_group, &[]);
             pass.dispatch_workgroups((PARTICLE_COUNT + 255) / 256, 1, 1);
             
         }
@@ -75,11 +79,12 @@ impl Node for FinalSimulationNode {
     ) -> Result<(), NodeRunError> {
         let pipeline_cache = world.resource::<PipelineCache>();
         let pipelines = world.resource::<SimulationComputePipeline>();
-        let Some(mut bind_groups) = world.try_query::<(Entity, &PreparedSimulationBindGroup)>()
-        else {
-            return Ok(());
-        };
 
+        
+
+
+        let Some(mut bind_groups) = world.try_query::<(Entity, &PreparedSimulationBindGroup, &InternalSimulationBuffers)>()
+            else { return Ok(()); };
 
         let Some(update_positions) =
             pipeline_cache.get_compute_pipeline(pipelines.update_positions)
@@ -93,15 +98,19 @@ impl Node for FinalSimulationNode {
             pipeline_cache.get_compute_pipeline(pipelines.reorder_copy_back)
         else { return Ok(()); };
 
-        let mut pass = render_context
-            .command_encoder()
-            .begin_compute_pass(&ComputePassDescriptor {
-                label: Some("final_simulation_compute"),
-                ..Default::default()
-            });
+        
 
-        for (_, bg) in bind_groups.iter(world) {
+        for (_, bg, ib) in bind_groups.iter(world) {
 
+            
+
+            let mut pass = render_context
+                .command_encoder()
+                .begin_compute_pass(&ComputePassDescriptor {
+                    label: Some("final_simulation_compute"),
+                    ..Default::default()
+                });
+            
 
             pass.set_bind_group(0, &bg.bind_group, &[]);
             pass.set_bind_group(1, &bg.write_back_bind_group, &[]);
@@ -113,6 +122,7 @@ impl Node for FinalSimulationNode {
             pass.set_pipeline(reorder_copy_back);
             pass.dispatch_workgroups((PARTICLE_COUNT + 255) / 256, 1, 1);
 
+            // finaly update positions
             pass.set_bind_group(0, &bg.bind_group, &[]);
             pass.set_pipeline(update_positions);
             pass.set_push_constants(0, bytemuck::bytes_of(&FIXED_DT));

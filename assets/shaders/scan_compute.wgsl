@@ -9,9 +9,7 @@ var<storage, read_write> elements: array<u32>;
 @group(1) @binding(0)
 var<storage, read_write> groupSums: array<u32>;
 
-@group(2) @binding(0)
-var<uniform> itemCount: u32;
-
+var<push_constant> item_count_push: u32;
 // Shared memory
 var<workgroup> temp: array<u32, ITEMS_PER_GROUP>;
 
@@ -21,95 +19,93 @@ var<workgroup> temp: array<u32, ITEMS_PER_GROUP>;
 // ------------------------------------------------------------
 @compute @workgroup_size(GROUP_SIZE, 1, 1)
 fn block_scan(
-    @builtin(global_invocation_id) gid: vec3<u32>,
-    @builtin(local_invocation_id)  lid: vec3<u32>,
-    @builtin(workgroup_id)         wid: vec3<u32>,
+    @builtin(global_invocation_id) threadGlobal: vec3<u32>,
+    @builtin(local_invocation_id)  threadLocal: vec3<u32>,
+    @builtin(workgroup_id)         group: vec3<u32>,
 ) {
-    let t = lid.x;
-    let g = gid.x;
-    let group = wid.x;
+    let localA  = threadLocal.x * 2u;
+    let localB  = threadLocal.x * 2u + 1u;
+    let globalA = threadGlobal.x * 2u;
+    let globalB = threadGlobal.x * 2u + 1u;
 
-    let localA  = t * 2u;
-    let localB  = t * 2u + 1u;
-    let globalA = g * 2u;
-    let globalB = g * 2u + 1u;
+    let hasA = globalA < item_count_push;
+    let hasB = globalB < item_count_push;
 
-    let hasA = globalA < itemCount;
-    let hasB = globalB < itemCount;
-
-    // Load input into shared memory
+    // Load
     temp[localA] = select(0u, elements[globalA], hasA);
     temp[localB] = select(0u, elements[globalB], hasB);
 
-    // Up-sweep (reduce)
+    // Up-sweep
     var offset: u32 = 1u;
-    var active_count: u32 = GROUP_SIZE;
+    var numActiveThreads: u32 = GROUP_SIZE;
 
     loop {
         workgroupBarrier();
 
-        if (t < active_count) {
-            let ia = offset * (localA + 1u) - 1u;
-            let ib = offset * (localB + 1u) - 1u;
-            temp[ib] = temp[ia] + temp[ib];
+        if (threadLocal.x < numActiveThreads) {
+            let indexA = offset * (localA + 1u) - 1u;
+            let indexB = offset * (localB + 1u) - 1u;
+            temp[indexB] = temp[indexA] + temp[indexB];
         }
 
         offset *= 2u;
-        active_count /= 2u;
-        if (active_count == 0u) { break; }
+        numActiveThreads /= 2u;
+        if (numActiveThreads == 0u) {
+            break;
+        }
     }
 
-    // Store block sum and prepare exclusive scan
-    if (t == 0u) {
-        groupSums[group] = temp[ITEMS_PER_GROUP - 1u];
+    // Thread 0
+    if (threadLocal.x == 0u) {
+        groupSums[group.x] = temp[ITEMS_PER_GROUP - 1u];
         temp[ITEMS_PER_GROUP - 1u] = 0u;
     }
 
     // Down-sweep
-    active_count = 1u;
+    numActiveThreads = 1u;
     loop {
         workgroupBarrier();
         offset /= 2u;
 
-        if (t < active_count) {
-            let ia = offset * (localA + 1u) - 1u;
-            let ib = offset * (localB + 1u) - 1u;
-            let s = temp[ia] + temp[ib];
-            temp[ia] = temp[ib];
-            temp[ib] = s;
+        if (threadLocal.x < numActiveThreads) {
+            let indexA = offset * (localA + 1u) - 1u;
+            let indexB = offset * (localB + 1u) - 1u;
+            let sum = temp[indexA] + temp[indexB];
+            temp[indexA] = temp[indexB];
+            temp[indexB] = sum;
         }
 
-        active_count *= 2u;
-        if (active_count > GROUP_SIZE) { break; }
+        numActiveThreads *= 2u;
+        if (numActiveThreads > GROUP_SIZE) {
+            break;
+        }
     }
 
     workgroupBarrier();
 
-    // Write results back
-    if (hasA) { elements[globalA] = temp[localA]; }
-    if (hasB) { elements[globalB] = temp[localB]; }
+    if (hasA) {
+        elements[globalA] = temp[localA];
+    }
+    if (hasB) {
+        elements[globalB] = temp[localB];
+    }
 }
 
-
 // ------------------------------------------------------------
-// BlockCombine: add scanned group offsets to each element
+// Block Combine
 // ------------------------------------------------------------
 @compute @workgroup_size(GROUP_SIZE, 1, 1)
 fn block_combine(
-    @builtin(global_invocation_id) gid: vec3<u32>,
+    @builtin(global_invocation_id) threadGlobal: vec3<u32>,
     @builtin(workgroup_id)         wid: vec3<u32>,
 ) {
-    let g = gid.x;
-    let group = wid.x;
+    let globalA = threadGlobal.x * 2 + 0;
+	let globalB = threadGlobal.x * 2 + 1;
 
-    let globalA = g * 2u;
-    let globalB = g * 2u + 1u;
-    let add = groupSums[group];
-
-    if (globalA < itemCount) {
-        elements[globalA] += add;
+	if (globalA < item_count_push) {
+        elements[globalA] += groupSums[wid.x];
     }
-    if (globalB < itemCount) {
-        elements[globalB] += add;
+	if (globalB < item_count_push) {
+        elements[globalB] += groupSums[wid.x];
     }
 }

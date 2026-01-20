@@ -105,6 +105,7 @@ impl Plugin for SimulationPlugin {
 
                 prepare_spatial_hash_bind_groups
                     .in_set(RenderSystems::PrepareBindGroups),
+
             ));
         
         // instead of using a compute system, i try to create a graph node
@@ -114,6 +115,7 @@ impl Plugin for SimulationPlugin {
         render_graph.add_node(CountSortLabel, CountSortNode::default());
         render_graph.add_node(SpatialHashSystemLabel, SpatialHashNode::default());
         render_graph.add_node(FinalSimulationSystemLabel, FinalSimulationNode::default());
+
         render_graph.add_node_edge(StartSimulationSystemLabel, CountSortLabel);
         render_graph.add_node_edge(CountSortLabel, SpatialHashSystemLabel);
         render_graph.add_node_edge(SpatialHashSystemLabel, FinalSimulationSystemLabel);

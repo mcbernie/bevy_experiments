@@ -23,6 +23,7 @@ pub struct InternalSimulationBuffers {
     pub predicted_positions: Buffer,
     pub spatial_keys: Buffer,
     pub spatial_offsets: Buffer,
+    pub spatial_indices: Buffer,
     pub sorted_indices: Buffer,
     pub sort_target_position: Buffer,
     pub sort_target_predicted_positions: Buffer,

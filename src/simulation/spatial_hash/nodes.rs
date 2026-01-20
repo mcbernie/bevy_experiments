@@ -36,21 +36,25 @@ impl Node for SpatialHashNode {
             pipeline_cache.get_compute_pipeline(pipeline_resource.calculate_offsets)
         else { return Ok(()); };
 
-
-        let mut pass = render_context
-            .command_encoder()
-            .begin_compute_pass(&ComputePassDescriptor {
-                label: Some("spatial_hash_compute_pass"),
-                ..Default::default()
-            });
-
         for (_, bg) in bind_groups.iter(world) {
+            let mut pass = render_context
+                .command_encoder()
+                .begin_compute_pass(&ComputePassDescriptor {
+                    label: Some("initialize_spatial_hash_offsets_compute_pass"),
+                    ..Default::default()
+                });
             pass.set_bind_group(0, &bg.bind_group, &[]);
             pass.set_pipeline(initalize_offsets);
             pass.dispatch_workgroups((PARTICLE_COUNT + 255) / 256, 1, 1);
         }
 
         for (_, bg) in bind_groups.iter(world) {
+            let mut pass = render_context
+                .command_encoder()
+                .begin_compute_pass(&ComputePassDescriptor {
+                    label: Some("calculate_spatial_hash_offsets_compute_pass"),
+                    ..Default::default()
+                });
             pass.set_bind_group(0, &bg.bind_group, &[]);
             pass.set_pipeline(calculate_offsets);
             pass.dispatch_workgroups((PARTICLE_COUNT + 255) / 256, 1, 1);

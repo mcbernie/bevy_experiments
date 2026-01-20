@@ -1,16 +1,16 @@
 use bevy::{
     prelude::*,
     render::{
-        render_asset::RenderAssets, render_resource::{
-            BindGroupEntry, BindGroupLayoutDescriptor, BufferDescriptor, BufferUsages, ComputePipelineDescriptor, PipelineCache, PushConstantRange, ShaderStages, UniformBuffer, binding_types::{storage_buffer, storage_buffer_read_only, uniform_buffer}
+        gpu_readback::{Readback, ReadbackComplete}, render_asset::RenderAssets, render_resource::{
+            BindGroupEntry, BindGroupLayoutDescriptor, BufferDescriptor, BufferUsages, ComputePipelineDescriptor, MapMode, PipelineCache, PollType, PushConstantRange, ShaderStages, UniformBuffer, binding_types::{storage_buffer, storage_buffer_read_only, uniform_buffer}
         }, renderer::{RenderDevice, RenderQueue}, storage::GpuShaderStorageBuffer
     },
 };
 
-use crate::simulation::components::{
+use crate::{ReadbackBuffer, simulation::components::{
     PreparedSimulationBindGroup, 
     SimulationBuffers
-};
+}};
 
 use super::{
     assets::SimulationParams,
@@ -50,6 +50,13 @@ pub fn create_internal_simulation_buffers(
         mapped_at_creation: false,
     });
 
+    let spatial_indices = render_device.create_buffer(&BufferDescriptor {
+        label: Some("spatial_indices_buffer"),
+        size: buffer_size_u32 as u64,
+        usage: BufferUsages::STORAGE | BufferUsages::COPY_DST | BufferUsages::COPY_SRC,
+        mapped_at_creation: false,
+    });
+
     let sorted_indices = render_device.create_buffer(&BufferDescriptor {
         label: Some("sorted_indices_buffer"),
         size: buffer_size_u32 as u64,
@@ -81,6 +88,7 @@ pub fn create_internal_simulation_buffers(
     InternalSimulationBuffers {
         predicted_positions,
         spatial_keys,
+        spatial_indices,
         spatial_offsets,
         sorted_indices,
         sort_target_position,
@@ -110,6 +118,7 @@ pub fn init_simulation_system(
 
         let mut uniform_buffer = UniformBuffer::from(params.clone());
         uniform_buffer.write_buffer(&render_device, &render_queue);
+
 
         warn!("Created InternalSimulationBuffers and SimulationUniform for entity {:?}", entity);
         commands.entity(entity).insert((

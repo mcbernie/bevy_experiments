@@ -1,6 +1,8 @@
-use bevy::{platform::collections::HashMap, prelude::*, render::{render_resource::{BindGroupEntry, BindGroupLayoutDescriptor, BufferDescriptor, BufferUsages, ComputePipelineDescriptor, PipelineCache, ShaderStages, UniformBuffer, binding_types::{storage_buffer, storage_buffer_read_only, uniform_buffer}}, renderer::{RenderDevice, RenderQueue}}};
+use core::num;
 
-use crate::{WORKGROUP_SIZE, simulation::{assets::SimulationParams, gpu_sort::{components::{InternalCountSortBuffers, PreparedCountSortComputeBindGroup}, helper::calc_num_groups}, helper::{CreatePipelineArgs, create_pipeline}}};
+use bevy::{platform::collections::HashMap, prelude::*, render::{render_resource::{BindGroupEntry, BindGroupLayoutDescriptor, BufferDescriptor, BufferUsages, ComputePipelineDescriptor, PipelineCache, PushConstantRange, ShaderStages, UniformBuffer, binding_types::{storage_buffer, storage_buffer_read_only, uniform_buffer}}, renderer::{RenderDevice, RenderQueue}}};
+
+use crate::{WORKGROUP_SIZE, simulation::{assets::SimulationParams, components::InternalSimulationBuffers, gpu_sort::{components::{InternalCountSortBuffers, PreparedCountSortComputeBindGroup}, helper::calc_num_groups}, helper::{CreatePipelineArgs, create_pipeline}}};
 
 use super::resources::CountSortComputePipeline;
 
@@ -72,7 +74,12 @@ pub fn init_count_sort_compute_pipeline(
             layout: vec![
                 scan_layout.clone(),
                 group_layout.clone(),
-                count_layout.clone(),
+            ],
+            push_constant_ranges: vec![
+                PushConstantRange {
+                    stages: ShaderStages::COMPUTE,
+                    range: 0..4,
+                }
             ],
             shader: scan_shader.clone(),
             entry_point: Some("block_scan".into()),
@@ -86,7 +93,12 @@ pub fn init_count_sort_compute_pipeline(
             layout: vec![
                 scan_layout.clone(),
                 group_layout.clone(),
-                count_layout.clone(),
+            ],
+            push_constant_ranges: vec![
+                PushConstantRange {
+                    stages: ShaderStages::COMPUTE,
+                    range: 0..4,
+                }
             ],
             shader: scan_shader.clone(),
             entry_point: Some("block_combine".into()),
@@ -157,18 +169,18 @@ pub fn prepare_count_sort_bind_groups(
     pipeline: Res<CountSortComputePipeline>,
     render_device: Res<RenderDevice>,
     pipeline_cache: Res<PipelineCache>,
-    query: Query<(Entity, &InternalCountSortBuffers), With<InternalCountSortBuffers>>,
+    query: Query<(Entity, &InternalCountSortBuffers, &InternalSimulationBuffers), With<InternalCountSortBuffers>>,
 ) {
     if query.is_empty() {
         return;
     }
 
-    for (entity, buffers) in &query {
+    for (entity, buffers, sim_buffers) in &query {
 
         let num_items = buffers.num_items.as_entire_binding();
-        let input_items = buffers.input_items.as_entire_binding();
-        let input_keys = buffers.input_keys.as_entire_binding();
-        let sorted_items = buffers.sorted_items.as_entire_binding();
+        let input_items = sim_buffers.spatial_indices.as_entire_binding(); // spatial indices
+        let input_keys = sim_buffers.spatial_keys.as_entire_binding();
+        let sorted_items = sim_buffers.sorted_indices.as_entire_binding();
         let sorted_keys = buffers.sorted_keys.as_entire_binding();
         let counts = buffers.counts.as_entire_binding();
         //let group_sums = buffers.group_sums.as_entire_binding();
@@ -182,7 +194,7 @@ pub fn prepare_count_sort_bind_groups(
             &[
                 BindGroupEntry {
                     binding: 0,
-                    resource: input_items.clone(),
+                    resource: input_items.clone(), // Spatial Indices
                 },
                 BindGroupEntry {
                     binding: 1,
@@ -213,7 +225,7 @@ pub fn prepare_count_sort_bind_groups(
             let group_sums = group_sum_buffer.as_entire_binding();
             let group_bind_group = render_device.create_bind_group(
                 "count_sort_per_group_bind_group",
-                &pipeline_cache.get_bind_group_layout(&pipeline.scan_layout),
+                &pipeline_cache.get_bind_group_layout(&pipeline.group_layout),
                 &[
                     BindGroupEntry {
                         binding: 0,
@@ -264,27 +276,6 @@ pub fn create_internal_count_sort_buffers(
 ) -> InternalCountSortBuffers {
     let buffer_size_u32 = (num_items as usize) * std::mem::size_of::<u32>();
 
-    let input_items = render_device.create_buffer(&BufferDescriptor {
-        label: Some("input_items_buffer"),
-        size: buffer_size_u32 as u64,
-        usage: BufferUsages::STORAGE | BufferUsages::COPY_DST | BufferUsages::COPY_SRC,
-        mapped_at_creation: false,
-    });
-
-    let input_keys = render_device.create_buffer(&BufferDescriptor {
-        label: Some("input_keys_buffer"),
-        size: buffer_size_u32 as u64,
-        usage: BufferUsages::STORAGE | BufferUsages::COPY_DST | BufferUsages::COPY_SRC,
-        mapped_at_creation: false,
-    });
-
-    let sorted_items = render_device.create_buffer(&BufferDescriptor {
-        label: Some("sorted_items_buffer"),
-        size: buffer_size_u32 as u64,
-        usage: BufferUsages::STORAGE | BufferUsages::COPY_DST | BufferUsages::COPY_SRC,
-        mapped_at_creation: false,
-    });
-
     let sorted_keys = render_device.create_buffer(&BufferDescriptor {
         label: Some("sorted_keys_buffer"),
         size: buffer_size_u32 as u64,
@@ -306,31 +297,26 @@ pub fn create_internal_count_sort_buffers(
         mapped_at_creation: false,
     });
 
-    // create a bunch of group_sums buffers for different sizes
-    // 10
-    // 5, 5
-
-    let mut num_group = calc_num_groups(num_items, WORKGROUP_SIZE);
+    let mut count_items = num_items;
     let mut group_sums = HashMap::new();
 
     loop {
+        let num_groups = calc_num_groups(count_items, WORKGROUP_SIZE);
         let group_sum_buffer = render_device.create_buffer(&BufferDescriptor {
-            label: Some(&format!("group_sums_buffer_{}", num_group)),
-            size: (num_group as usize * std::mem::size_of::<u32>()) as u64,
+            label: Some(&format!("group_sums_buffer_{}", num_groups)),
+            size: (num_groups as usize * std::mem::size_of::<u32>()) as u64,
             usage: BufferUsages::STORAGE | BufferUsages::COPY_DST | BufferUsages::COPY_SRC,
             mapped_at_creation: false,
         });
-        group_sums.insert(num_group, group_sum_buffer);
-        if num_group <= 1 {
+        group_sums.insert(num_groups, group_sum_buffer);
+        if num_groups <= 1 {
             break;
         }
-        num_group = calc_num_groups(num_group, WORKGROUP_SIZE);
+        count_items = num_groups;
     }
 
     InternalCountSortBuffers {
-        input_items,
-        input_keys,
-        sorted_items,
+        //sorted_items,
         sorted_keys,
         counts,
         group_sums,

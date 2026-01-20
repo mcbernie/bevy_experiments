@@ -48,6 +48,45 @@ fn keyFromHash(h: u32, size: u32) -> u32 {
     return h % size;
 }
 
+const OFFSETS_3D : array<vec3<i32>, 27> = array<vec3<i32>, 27>(
+    vec3<i32>(-1, -1, -1),
+    vec3<i32>( 0, -1, -1),
+    vec3<i32>( 1, -1, -1),
+
+    vec3<i32>(-1,  0, -1),
+    vec3<i32>( 0,  0, -1),
+    vec3<i32>( 1,  0, -1),
+
+    vec3<i32>(-1,  1, -1),
+    vec3<i32>( 0,  1, -1),
+    vec3<i32>( 1,  1, -1),
+
+    vec3<i32>(-1, -1,  0),
+    vec3<i32>( 0, -1,  0),
+    vec3<i32>( 1, -1,  0),
+
+    vec3<i32>(-1,  0,  0),
+    vec3<i32>( 0,  0,  0),
+    vec3<i32>( 1,  0,  0),
+
+    vec3<i32>(-1,  1,  0),
+    vec3<i32>( 0,  1,  0),
+    vec3<i32>( 1,  1,  0),
+
+    vec3<i32>(-1, -1,  1),
+    vec3<i32>( 0, -1,  1),
+    vec3<i32>( 1, -1,  1),
+
+    vec3<i32>(-1,  0,  1),
+    vec3<i32>( 0,  0,  1),
+    vec3<i32>( 1,  0,  1),
+
+    vec3<i32>(-1,  1,  1),
+    vec3<i32>( 0,  1,  1),
+    vec3<i32>( 1,  1,  1),
+);
+
+
 @compute @workgroup_size(WORKGROUP_SIZE)
 fn external_forces(@builtin(global_invocation_id) id : vec3<u32>) {
     if (id.x >= params.numParticles) { return; }
@@ -69,18 +108,21 @@ fn update_spatial(@builtin(global_invocation_id) id : vec3<u32>) {
 fn update_positions(@builtin(global_invocation_id) id : vec3<u32>) {
     if (id.x >= params.numParticles) { return; }
 
+
+    //resolve_particle_collisions(id.x, &pos, &vel);
+
     var vel = velocities[id.x].xyz;
     var pos = positions[id.x].xyz;
     pos += vel * delta_time;
 
-    resolve_particle_collisions(id.x, &pos, &vel);
 
     resolve_collisions(&pos, &vel, params.collisionDamping);
-
 
     // Write results
     positions[id.x] = vec4<f32>(pos, 0.0);
     velocities[id.x] = vec4<f32>(vel, 0.0);
+
+    resolve_particle_collisions_neighbour(id.x);
 }
 
 fn resolve_collisions(
@@ -181,14 +223,9 @@ fn reorder(
 
     let sorted_index = sorted_indices[i];
 
-    sort_target_positions[i] =
-        positions[sorted_index];
-
-    sort_target_predicted_positions[i] =
-        predicted_positions[sorted_index];
-
-    sort_target_velocities[i] =
-        velocities[sorted_index];
+    sort_target_positions[i] = positions[sorted_index];
+    sort_target_predicted_positions[i] = predicted_positions[sorted_index];
+    sort_target_velocities[i] = velocities[sorted_index];
 }
 
 @compute @workgroup_size(WORKGROUP_SIZE)
@@ -201,12 +238,77 @@ fn reorder_copy_back(
         return;
     }
 
-    positions[i] =
-        sort_target_positions[i];
-
-    predicted_positions[i] =
-        sort_target_predicted_positions[i];
-
-    velocities[i] =
-        sort_target_velocities[i];
+    positions[i] = sort_target_positions[i];
+    predicted_positions[i] = sort_target_predicted_positions[i];
+    velocities[i] = sort_target_velocities[i];
 }
+
+
+
+// Test: simple collision
+fn resolve_particle_collisions_neighbour(sorted_i: u32) {
+    let i = sorted_indices[sorted_i]; // echter Partikelindex
+
+    let r = 0.05;
+    let min_dist = r * 2.0;
+    let min_dist_sq = min_dist * min_dist;
+
+    var p = positions[i].xyz;
+    var v = velocities[i].xyz;
+
+    let cell = getCell3D(p, params.smoothingRadius);
+
+    // 27 Nachbarzellen
+    for (var c: u32 = 0u; c < 27u; c = c + 1u) {
+        let neighbour_cell = cell + OFFSETS_3D[c];
+        let key = hashCell3D(neighbour_cell);
+
+        let start = spatial_offsets[key];
+        if (start == 0xffffffffu) {
+            continue;
+        }
+
+        var j_sorted = start;
+        loop {
+            if (j_sorted >= params.numParticles) {
+                break;
+            }
+
+            if (spatial_keys[j_sorted] != key) {
+                break;
+            }
+
+            let j = sorted_indices[j_sorted];
+
+            if (j == i) {
+                j_sorted += 1u;
+                continue;
+            }
+
+            let other_p = positions[j].xyz;
+            let delta = p - other_p;
+            let dist_sq = dot(delta, delta);
+
+            if (dist_sq > 0.0 && dist_sq < min_dist_sq) {
+                let dist = sqrt(dist_sq);
+                let n = delta / dist;
+                let penetration = min_dist - dist;
+
+                // Positionskorrektur (PBD light)
+                p += n * penetration * 0.5;
+
+                // Velocity nur entlang Normalen
+                let vn = dot(v, n);
+                if (vn < 0.0) {
+                    v -= (1.0 + params.collisionDamping) * vn * n;
+                }
+            }
+
+            j_sorted += 1u;
+        }
+    }
+
+    positions[i] = vec4<f32>(p, 0.0);
+    velocities[i] = vec4<f32>(v, 0.0);
+}
+
