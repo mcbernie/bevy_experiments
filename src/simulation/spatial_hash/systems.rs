@@ -1,28 +1,6 @@
-use bevy::{prelude::*, render::{render_resource::{BindGroupEntry, BindGroupLayoutDescriptor, BufferDescriptor, BufferUsages, ComputePipelineDescriptor, PipelineCache, ShaderStages, binding_types::{storage_buffer, storage_buffer_read_only}}, renderer::RenderDevice}};
+use bevy::{prelude::*, render::{render_resource::{BindGroupEntry, BindGroupLayoutDescriptor, ComputePipelineDescriptor, PipelineCache, ShaderStages, binding_types::{storage_buffer, storage_buffer_read_only}}, renderer::RenderDevice}};
 
-use crate::simulation::{assets::SimulationParams, gpu_sort::InternalCountSortBuffers, spatial_hash::{components::{InternalSpatialHashBuffers, PreparedSpatialHashComputeBindGroup}, resources::SpatialHashComputePipeline}};
-
-pub fn init_spatial_hash_system(
-    mut commands: Commands,
-    render_device: Res<RenderDevice>,
-    //render_queue: Res<RenderQueue>,
-    query: Query<(Entity, &SimulationParams), Without<InternalSpatialHashBuffers>>,
-) {
-
-    if query.is_empty() {
-        return;
-    }
-
-    for (entity, params) in &query {
-        let particle_count = params.particle_count;
-        let internal_buffers = create_internal_spatial_hash_buffers(&render_device, particle_count);
-
-        warn!("Created InternalCountSortBuffers for entity {:?}", entity);
-        commands.entity(entity).insert((
-            internal_buffers,
-        ));
-    }
-}
+use crate::simulation::{components::InternalSimulationBuffers, gpu_sort::InternalCountSortBuffers, spatial_hash::{components::{PreparedSpatialHashComputeBindGroup}, resources::SpatialHashComputePipeline}};
 
 pub fn init_spatial_hash_compute_pipeline(
     mut commands: Commands,
@@ -78,16 +56,16 @@ pub fn prepare_spatial_hash_bind_groups(
     pipeline: Res<SpatialHashComputePipeline>,
     render_device: Res<RenderDevice>,
     pipeline_cache: Res<PipelineCache>,
-    query: Query<(Entity, &InternalCountSortBuffers, &InternalSpatialHashBuffers), With<InternalCountSortBuffers>>,
+    query: Query<(Entity, &InternalCountSortBuffers, &InternalSimulationBuffers), With<InternalCountSortBuffers>>,
 ) {
     if query.is_empty() {
         return;
     }
 
-    for (entity, internal_sort_buffers, internal_spatial_hash_buffers) in &query {
+    for (entity, internal_sort_buffers, internal_simulation_buffers) in &query {
 
         let sorted_keys = &internal_sort_buffers.sorted_keys;
-        let offsets = &internal_spatial_hash_buffers.spatial_offsets;
+        let offsets = &internal_simulation_buffers.spatial_offsets;
         //let uniform_buffer = simulation_uniform.buffer.as_ref().unwrap();
 
         // we need to create this for each pipeline...?
@@ -111,23 +89,5 @@ pub fn prepare_spatial_hash_bind_groups(
                 PreparedSpatialHashComputeBindGroup { bind_group },
             )
         );
-    }
-}
-
-pub fn create_internal_spatial_hash_buffers(
-    render_device: &RenderDevice,
-    num_items: u32,
-) -> InternalSpatialHashBuffers {
-    let buffer_size_u32 = (num_items as usize) * std::mem::size_of::<u32>();
-
-    let spatial_offsets = render_device.create_buffer(&BufferDescriptor {
-        label: Some("spatial_offsets_buffer"),
-        size: buffer_size_u32 as u64,
-        usage: BufferUsages::STORAGE | BufferUsages::COPY_DST | BufferUsages::COPY_SRC,
-        mapped_at_creation: false,
-    });
-
-    InternalSpatialHashBuffers {
-        spatial_offsets,
     }
 }

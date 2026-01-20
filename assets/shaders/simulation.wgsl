@@ -22,6 +22,15 @@ struct SimParams {
 
 var<push_constant> delta_time: f32;
 
+@group(1) @binding(0)
+var<storage, read_write> sort_target_positions: array<vec4<f32>>;
+@group(1) @binding(1)
+var<storage, read_write> sort_target_predicted_positions: array<vec4<f32>>;
+@group(1) @binding(2)
+var<storage, read_write> sort_target_velocities: array<vec4<f32>>;
+
+const WORKGROUP_SIZE: u32 = 256u;
+
 fn getCell3D(pos: vec3<f32>, r: f32) -> vec3<i32> {
     return vec3<i32>(floor(pos / r));
 }
@@ -39,7 +48,7 @@ fn keyFromHash(h: u32, size: u32) -> u32 {
     return h % size;
 }
 
-@compute @workgroup_size(256)
+@compute @workgroup_size(WORKGROUP_SIZE)
 fn external_forces(@builtin(global_invocation_id) id : vec3<u32>) {
     if (id.x >= params.numParticles) { return; }
 
@@ -47,7 +56,7 @@ fn external_forces(@builtin(global_invocation_id) id : vec3<u32>) {
     predicted_positions[id.x] = vec4<f32>(positions[id.x].xyz + velocities[id.x].xyz * (1.0 / 120.0), 0.0);
 }
 
-@compute @workgroup_size(256)
+@compute @workgroup_size(WORKGROUP_SIZE)
 fn update_spatial(@builtin(global_invocation_id) id : vec3<u32>) {
     if (id.x >= params.numParticles) { return; }
 
@@ -56,7 +65,7 @@ fn update_spatial(@builtin(global_invocation_id) id : vec3<u32>) {
     spatial_keys[id.x] = keyFromHash(hash, params.numParticles);
 }
 
-@compute @workgroup_size(256)
+@compute @workgroup_size(WORKGROUP_SIZE)
 fn update_positions(@builtin(global_invocation_id) id : vec3<u32>) {
     if (id.x >= params.numParticles) { return; }
 
@@ -157,4 +166,47 @@ fn resolve_particle_collisions(
 
     *pos = p;
     *vel = v;
+}
+
+
+@compute @workgroup_size(WORKGROUP_SIZE)
+fn reorder(
+    @builtin(global_invocation_id) id: vec3<u32>
+) {
+    let i = id.x;
+
+    if (i >= params.numParticles) {
+        return;
+    }
+
+    let sorted_index = sorted_indices[i];
+
+    sort_target_positions[i] =
+        positions[sorted_index];
+
+    sort_target_predicted_positions[i] =
+        predicted_positions[sorted_index];
+
+    sort_target_velocities[i] =
+        velocities[sorted_index];
+}
+
+@compute @workgroup_size(WORKGROUP_SIZE)
+fn reorder_copy_back(
+    @builtin(global_invocation_id) id: vec3<u32>
+) {
+    let i = id.x;
+
+    if (i >= params.numParticles) {
+        return;
+    }
+
+    positions[i] =
+        sort_target_positions[i];
+
+    predicted_positions[i] =
+        sort_target_predicted_positions[i];
+
+    velocities[i] =
+        sort_target_velocities[i];
 }

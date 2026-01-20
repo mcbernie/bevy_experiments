@@ -57,11 +57,35 @@ pub fn create_internal_simulation_buffers(
         mapped_at_creation: false,
     });
 
+    let sort_target_position = render_device.create_buffer(&BufferDescriptor {
+        label: Some("sort_target_position_buffer"),
+        size: buffer_size as u64,
+        usage: BufferUsages::STORAGE | BufferUsages::COPY_DST | BufferUsages::COPY_SRC,
+        mapped_at_creation: false,
+    });
+
+    let sort_target_predicted_positions = render_device.create_buffer(&BufferDescriptor {
+        label: Some("sort_target_predicted_positions_buffer"),
+        size: buffer_size as u64,
+        usage: BufferUsages::STORAGE | BufferUsages::COPY_DST | BufferUsages::COPY_SRC,
+        mapped_at_creation: false,
+    });
+
+    let sort_target_velocity = render_device.create_buffer(&BufferDescriptor {
+        label: Some("sort_target_velocity_buffer"),
+        size: buffer_size as u64,
+        usage: BufferUsages::STORAGE | BufferUsages::COPY_DST | BufferUsages::COPY_SRC,
+        mapped_at_creation: false,
+    });
+
     InternalSimulationBuffers {
         predicted_positions,
         spatial_keys,
         spatial_offsets,
         sorted_indices,
+        sort_target_position,
+        sort_target_predicted_positions,
+        sort_target_velocity,
     }
 }
 
@@ -124,6 +148,19 @@ pub fn init_compute_pipeline(
             uniform_buffer::<SimulationParams>(false).build(6, ShaderStages::COMPUTE),
         ],
     );
+    
+    let write_back_bind_group_layout = BindGroupLayoutDescriptor::new(
+        "write_back_bind_group_layout",
+        &[
+            // will replaced by i think `storage_buffer` method. but works for now
+            // sort_target_position
+            storage_buffer::<Vec4>(false).build(0, ShaderStages::COMPUTE),
+            // sort_target_predicted_positions
+            storage_buffer::<Vec4>(false).build(1, ShaderStages::COMPUTE),
+            // predicted sort_target_velocities
+            storage_buffer::<Vec4>(false).build(2, ShaderStages::COMPUTE),
+        ],
+    );;
 
     let shader: Handle<Shader> = asset_server.load("shaders/simulation.wgsl");
 
@@ -161,6 +198,26 @@ pub fn init_compute_pipeline(
         &pipeline_cache,
     );
     
+    let reorder = pipeline_cache.queue_compute_pipeline(
+        ComputePipelineDescriptor {
+            label: Some("reorder_pipeline".into()),
+            layout: vec![bind_group_layout.clone(), write_back_bind_group_layout.clone()],
+            shader: shader.clone(),
+            entry_point: Some("reorder".into()),
+            ..Default::default()
+        }
+    );
+
+    let reorder_copy_back = pipeline_cache.queue_compute_pipeline(
+        ComputePipelineDescriptor {
+            label: Some("reorder_copy_back_pipeline".into()),
+            layout: vec![bind_group_layout.clone(), write_back_bind_group_layout.clone()],
+            shader: shader.clone(),
+            entry_point: Some("reorder_copy_back".into()),
+            ..Default::default()
+        }
+    );
+    
     warn!("insert simulationcomputepipeline resource 
          external_forces: {:?}, spatial_hash: {:?}, update_positions: {:?}",
         external_forces, spatial_hash, update_positions
@@ -171,6 +228,9 @@ pub fn init_compute_pipeline(
         external_forces,
         spatial_hash,
         update_positions,
+        reorder,
+        reorder_copy_back,
+        write_back_bind_group: write_back_bind_group_layout,
         layout: bind_group_layout,
     });
 
@@ -199,6 +259,10 @@ pub fn prepare_simulation_bind_groups(
         let spatial_keys = &internal_buffers.spatial_keys;
         let spatial_offsets = &internal_buffers.spatial_offsets;
         let sorted_indices = &internal_buffers.sorted_indices;
+
+        let sort_target_position = &internal_buffers.sort_target_position;
+        let sort_target_predicted_positions = &internal_buffers.sort_target_predicted_positions;
+        let sort_target_velocities = &internal_buffers.sort_target_velocity;
 
         let uniform_buffer = &simulation_uniform.0;
 
@@ -238,9 +302,28 @@ pub fn prepare_simulation_bind_groups(
             ],
         );
 
+        let write_back_bind_group = render_device.create_bind_group(
+            "simulation_write_back_bind_group",
+            &pipeline_cache.get_bind_group_layout(&pipeline.write_back_bind_group),
+            &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: sort_target_position.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: sort_target_predicted_positions.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: sort_target_velocities.as_entire_binding(),
+                },
+            ],
+        );
+
         commands.entity(entity).insert(
             (
-                PreparedSimulationBindGroup { bind_group },
+                PreparedSimulationBindGroup { bind_group, write_back_bind_group },
             )
         );
     }

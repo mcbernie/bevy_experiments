@@ -24,6 +24,9 @@ pub struct InternalSimulationBuffers {
     pub spatial_keys: Buffer,
     pub spatial_offsets: Buffer,
     pub sorted_indices: Buffer,
+    pub sort_target_position: Buffer,
+    pub sort_target_predicted_positions: Buffer,
+    pub sort_target_velocity: Buffer,
 }
 
 #[derive(Component, ExtractComponent, Clone)]
@@ -44,6 +47,8 @@ pub struct AdvancedSimulationBuffers {
 #[derive(Component)]
 pub struct PreparedSimulationBindGroup {
     pub bind_group: BindGroup,
+
+    pub write_back_bind_group: BindGroup,
 }
 
 // lebt nur in der RenderApp

@@ -85,6 +85,14 @@ impl Node for FinalSimulationNode {
             pipeline_cache.get_compute_pipeline(pipelines.update_positions)
         else { return Ok(()); };
 
+        let Some(reorder) =
+            pipeline_cache.get_compute_pipeline(pipelines.reorder)
+        else { return Ok(()); };
+
+        let Some(reorder_copy_back) =
+            pipeline_cache.get_compute_pipeline(pipelines.reorder_copy_back)
+        else { return Ok(()); };
+
         let mut pass = render_context
             .command_encoder()
             .begin_compute_pass(&ComputePassDescriptor {
@@ -93,9 +101,19 @@ impl Node for FinalSimulationNode {
             });
 
         for (_, bg) in bind_groups.iter(world) {
-            pass.set_bind_group(0, &bg.bind_group, &[]);
 
-            // final step: Update positions
+
+            pass.set_bind_group(0, &bg.bind_group, &[]);
+            pass.set_bind_group(1, &bg.write_back_bind_group, &[]);
+            pass.set_pipeline(reorder);
+            pass.dispatch_workgroups((PARTICLE_COUNT + 255) / 256, 1, 1);
+
+            pass.set_bind_group(0, &bg.bind_group, &[]);
+            pass.set_bind_group(1, &bg.write_back_bind_group, &[]);
+            pass.set_pipeline(reorder_copy_back);
+            pass.dispatch_workgroups((PARTICLE_COUNT + 255) / 256, 1, 1);
+
+            pass.set_bind_group(0, &bg.bind_group, &[]);
             pass.set_pipeline(update_positions);
             pass.set_push_constants(0, bytemuck::bytes_of(&FIXED_DT));
             pass.dispatch_workgroups((PARTICLE_COUNT + 255) / 256, 1, 1);

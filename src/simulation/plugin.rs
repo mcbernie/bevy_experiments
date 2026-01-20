@@ -1,13 +1,50 @@
 
-use bevy::{asset::{load_internal_asset, uuid_handle}, prelude::*, render::{Render, RenderApp, RenderStartup, RenderSystems, extract_component::ExtractComponentPlugin, graph::CameraDriverLabel, render_graph::RenderGraph}};
-// use bevy_inspector_egui::quick::ResourceInspectorPlugin;
-// use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::ResourceInspectorPlugin};
+use bevy::{
+    prelude::*,
+    render::{
+        extract_component::ExtractComponentPlugin,
+        graph::CameraDriverLabel,
+        render_graph::RenderGraph,
+        Render,
+        RenderApp,
+        RenderStartup,
+        RenderSystems,
+    },
+};
 
-use crate::simulation::{ gpu_sort::{CountSortLabel, CountSortNode, init_count_sort_compute_pipeline, init_count_sort_system, prepare_count_sort_bind_groups}, node::{FinalSimulationNode, FinalSimulationSystemLabel, StartSimulationNode, StartSimulationSystemLabel}, renderer::update_simulation_gizmo, sim::{init_compute_pipeline, init_simulation_system, prepare_simulation_bind_groups}, spatial_hash::{SpatialHashNode, SpatialHashSystemLabel, init_spatial_hash_compute_pipeline, init_spatial_hash_system, prepare_spatial_hash_bind_groups}, systems::update_simulation_uniform};
-
-use super::assets::SimulationParams;
-use super::components::SimulationBuffers; 
-use super::renderer::spawn_simulation_once;
+use super::{
+    assets::SimulationParams,
+    components::SimulationBuffers,
+    gpu_sort::{
+        CountSortLabel,
+        CountSortNode,
+        init_count_sort_compute_pipeline,
+        init_count_sort_system,
+        prepare_count_sort_bind_groups,
+    },
+    node::{
+        FinalSimulationNode,
+        FinalSimulationSystemLabel,
+        StartSimulationNode,
+        StartSimulationSystemLabel,
+    },
+    renderer::{
+        spawn_simulation_once,
+        update_simulation_gizmo,
+    },
+    sim::{
+        init_compute_pipeline,
+        init_simulation_system,
+        prepare_simulation_bind_groups,
+    },
+    spatial_hash::{
+        SpatialHashNode,
+        SpatialHashSystemLabel,
+        init_spatial_hash_compute_pipeline,
+        prepare_spatial_hash_bind_groups,
+    },
+    systems::update_simulation_uniform,
+};
 
 //const SIM_DATA: Handle<Shader> =
 //    uuid_handle!("990ee5ac-3d4a-4593-841f-6b46f02abcb4");
@@ -59,10 +96,6 @@ impl Plugin for SimulationPlugin {
                 init_count_sort_system
                     .in_set(RenderSystems::PrepareBindGroups)
                     .before(prepare_count_sort_bind_groups).after(init_simulation_system),
-
-                init_spatial_hash_system
-                    .in_set(RenderSystems::PrepareBindGroups)
-                    .before(prepare_spatial_hash_bind_groups).after(init_count_sort_system),
 
                 prepare_simulation_bind_groups
                     .in_set(RenderSystems::PrepareBindGroups),
