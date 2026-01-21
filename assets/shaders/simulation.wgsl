@@ -241,27 +241,27 @@ fn update_positions(@builtin(global_invocation_id) id : vec3<u32>) {
 
     // Write results
     positions[id.x] = vec4<f32>(pos, 0.0);
-    if (vel.y >= max) {
-        vel.y = max;
-    }
-    if (vel.x >= max) {
-        vel.x = max;
-    }
+    //if (vel.y >= max) {
+    //    vel.y = max;
+    //}
+    //if (vel.x >= max) {
+    //    vel.x = max;
+    //}
 
-    if (vel.z >= max) {
-        vel.z = max;
-    }
+    //if (vel.z >= max) {
+    //    vel.z = max;
+    //}
 
-    if (vel.y <= -max) {
-        vel.y = -max;
-    }
-    if (vel.x <= -max) {
-        vel.x = -max;
-    }
+    //if (vel.y <= -max) {
+    //    vel.y = -max;
+    //}
+    //if (vel.x <= -max) {
+    //    vel.x = -max;
+    //}
 
-    if (vel.z <= -max) {
-        vel.z = -max;
-    }
+    //if (vel.z <= -max) {
+    //    vel.z = -max;
+    //}
     velocities[id.x] = vec4<f32>(vel, 0.0);
 }
 

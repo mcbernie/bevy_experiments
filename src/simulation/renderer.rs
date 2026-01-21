@@ -77,7 +77,7 @@ pub fn spawn_simulation_once(
             velocities: velocities.clone(),
             debug_buffer: debug_buffer_handle.clone(),
             color: Vec4::new(0.2, 0.5, 1.0, 1.0),
-            radius: 0.05,
+            radius: 0.5,
         }
     );
 

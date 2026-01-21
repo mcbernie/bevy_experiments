@@ -39,7 +39,7 @@ fn vertex(
     let center = positions[particle_index].xyz;
     let velocity = velocities[particle_index].xyz;
 
-    let size = 0.05;
+    let size = 0.1;
     let offset_2d = QUAD_OFFSETS[corner] * size;
 
     // Kameraachsen
