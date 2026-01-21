@@ -1,6 +1,17 @@
-use bevy::{prelude::*, render::{render_resource::{BindGroupEntry, BindGroupLayoutDescriptor, ComputePipelineDescriptor, PipelineCache, ShaderStages, binding_types::{storage_buffer, storage_buffer_read_only}}, renderer::RenderDevice}};
+use bevy::{prelude::*, render::{render_resource::{BindGroupEntry, BindGroupLayoutDescriptor, CommandEncoder, ComputePass, ComputePipeline, ComputePipelineDescriptor, PipelineCache, ShaderStages, binding_types::{storage_buffer, storage_buffer_read_only}}, renderer::RenderDevice}};
 
-use crate::simulation::{components::InternalSimulationBuffers, gpu_sort::InternalCountSortBuffers, spatial_hash::{components::{PreparedSpatialHashComputeBindGroup}, resources::SpatialHashComputePipeline}};
+use crate::simulation::{components::InternalSimulationBuffers, gpu_sort::InternalCountSortBuffers, helper::dispatch_compute, spatial_hash::{components::PreparedSpatialHashComputeBindGroup, resources::SpatialHashComputePipeline}};
+
+pub fn run_spatial_hash_compute_pipeline(
+    pass: &mut ComputePass,
+    initialize_offsets: &ComputePipeline,
+    calculate_offsets: &ComputePipeline,
+    bg: &PreparedSpatialHashComputeBindGroup,
+    wg_size: u32,
+) {
+    dispatch_compute(pass, initialize_offsets, &[&bg.bind_group], None, wg_size);
+    dispatch_compute(pass, calculate_offsets, &[&bg.bind_group], None, wg_size);
+}   
 
 pub fn init_spatial_hash_compute_pipeline(
     mut commands: Commands,

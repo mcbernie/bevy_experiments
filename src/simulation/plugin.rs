@@ -5,6 +5,8 @@ use bevy::{
     }
 };
 
+use crate::simulation::systems::{SimulationRunGuard, run_simulation};
+
 use super::{
     assets::SimulationParams,
     components::SimulationBuffers,
@@ -69,6 +71,7 @@ impl Plugin for SimulationPlugin {
         let render_app = app.sub_app_mut(RenderApp);
 
         render_app
+            .insert_resource(SimulationRunGuard::default())
             .add_systems(RenderStartup,
                 (init_compute_pipeline, init_count_sort_compute_pipeline, init_spatial_hash_compute_pipeline),
             )
@@ -83,22 +86,25 @@ impl Plugin for SimulationPlugin {
                 init_simulation_system
                     .in_set(RenderSystems::PrepareBindGroups)
                     .before(prepare_simulation_bind_groups),
-
                 init_count_sort_system
                     .in_set(RenderSystems::PrepareBindGroups)
                     .before(prepare_count_sort_bind_groups).after(init_simulation_system),
 
                 prepare_simulation_bind_groups
                     .in_set(RenderSystems::PrepareBindGroups),
-
                 prepare_count_sort_bind_groups
                     .in_set(RenderSystems::PrepareBindGroups),
-
                 prepare_spatial_hash_bind_groups
                     .in_set(RenderSystems::PrepareBindGroups),
 
-            ));
+            ))
+            .add_systems(Render, 
+                run_simulation.in_set(RenderSystems::Queue),
+            );
         
+        /*
+        DISABLED - use render system instead
+
         let mut render_graph = render_app.world_mut().resource_mut::<RenderGraph>();
         
         render_graph.add_node(StartSimulationSystemLabel, StartSimulationNode::default());
@@ -116,6 +122,7 @@ impl Plugin for SimulationPlugin {
 
         // do all the simulation on sorted positions and update positions and velocities
         render_graph.add_node_edge(FinalSimulationSystemLabel, CameraDriverLabel);
+        */
 
     }
 }

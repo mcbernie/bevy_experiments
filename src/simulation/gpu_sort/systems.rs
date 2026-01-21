@@ -3,34 +3,104 @@ use bevy::{
     prelude::*,
     render::{
         render_resource::{
-            BindGroupEntry,
-            BindGroupLayoutDescriptor,
-            BufferDescriptor,
-            BufferUsages,
-            ComputePipelineDescriptor,
-            PipelineCache,
-            PushConstantRange,
-            ShaderStages,
-            binding_types::{storage_buffer, uniform_buffer},
+            BindGroup, BindGroupEntry, BindGroupLayoutDescriptor, BufferDescriptor, BufferUsages, ComputePass, ComputePipeline, ComputePipelineDescriptor, PipelineCache, PushConstantRange, ShaderStages, binding_types::{storage_buffer, uniform_buffer}
         },
-        renderer::RenderDevice,
+        renderer::{RenderDevice, RenderQueue},
     },
 };
 
 use crate::{
-    WORKGROUP_SIZE,
-    simulation::{
+    PARTICLE_COUNT, WORKGROUP_SIZE, simulation::{
         assets::SimulationParams,
         components::InternalSimulationBuffers,
         gpu_sort::{
             components::{InternalCountSortBuffers, PreparedCountSortComputeBindGroup},
             helper::calc_num_groups,
         },
-        helper::{CreatePipelineArgs, create_pipeline},
-    },
+        helper::{CreatePipelineArgs, create_pipeline, dispatch_compute},
+    }
 };
 
 use super::resources::CountSortComputePipeline;
+
+struct ScanLevel {
+    item_count: u32,
+    num_groups: u32,
+    elements_bg: BindGroup,   // Buffer, der gerade gescannt wird
+    group_sums_bg: BindGroup, // passender groupSums-Buffer
+}
+
+pub fn run_count_sort_compute(
+    queue: &Res<RenderQueue>,
+    pass: &mut ComputePass,
+    clear_counts: &ComputePipeline,
+    count: &ComputePipeline,
+    scan: &ComputePipeline,
+    combine: &ComputePipeline,
+    scatter_output: &ComputePipeline,
+    copy_back: &ComputePipeline,
+    bg: &PreparedCountSortComputeBindGroup,
+    buffers: &InternalCountSortBuffers,
+    particle_count: u32,
+) {
+    let wg_size = WORKGROUP_SIZE;
+    
+    let calced_wg_size = (particle_count + (WORKGROUP_SIZE - 1)) / WORKGROUP_SIZE;//calc_num_groups(particle_count, wg_size);
+    queue.write_buffer(&buffers.num_items, 0, bytemuck::bytes_of(&particle_count));
+
+    dispatch_compute(pass, clear_counts, &[&bg.sort_bind_group], None, calced_wg_size);
+    dispatch_compute(pass, count, &[&bg.sort_bind_group], None, calced_wg_size);
+    let mut levels: Vec<ScanLevel> = Vec::new();
+
+    let mut current_item_count = particle_count;
+    let mut current_elements_bg = bg.scan_bind_group.clone(); // elements
+
+    // ---- the scan pass ----
+    loop {
+        let num_groups = calc_num_groups(current_item_count, wg_size);
+
+        let group_sums_bg = bg.per_group_count
+            .get(&num_groups)
+            .expect("missing group_sums bind group")
+            .clone();
+
+        dispatch_compute(pass, scan, &[
+            &current_elements_bg,
+            &group_sums_bg,
+        ], Some(bytemuck::bytes_of(&current_item_count)), num_groups);
+
+        levels.push(ScanLevel {
+            item_count: current_item_count,
+            num_groups,
+            elements_bg: current_elements_bg.clone(),
+            group_sums_bg: group_sums_bg.clone(),
+        });
+
+        if num_groups <= 1 {
+            break;
+        }
+
+        current_elements_bg = group_sums_bg;
+        current_item_count = num_groups;
+    }
+
+    for level in levels.iter().rev().skip(1) {
+        dispatch_compute(pass, combine, &[
+            &level.elements_bg,
+            &level.group_sums_bg,
+        ], Some(bytemuck::bytes_of(&level.item_count)), level.num_groups);
+    }
+
+    // 4) scatter output
+    dispatch_compute(pass, scatter_output, &[
+        &bg.sort_bind_group,
+    ], None, calced_wg_size);
+
+    // 5) copy back
+    dispatch_compute(pass, copy_back, &[
+        &bg.sort_bind_group,
+    ], None, calced_wg_size);
+}   
 
 pub fn init_count_sort_compute_pipeline(
     mut commands: Commands,

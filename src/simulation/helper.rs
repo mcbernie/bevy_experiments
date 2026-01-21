@@ -2,12 +2,7 @@ use bevy::{
     asset::Handle,
     ecs::system::Res,
     render::render_resource::{
-        BindGroupLayoutDescriptor,
-        CachedComputePipelineId,
-        ComputePipelineDescriptor,
-        PipelineCache,
-        PushConstantRange,
-        ShaderStages,
+        BindGroup, BindGroupLayoutDescriptor, CachedComputePipelineId, ComputePass, ComputePipeline, ComputePipelineDescriptor, PipelineCache, PushConstantRange, ShaderStages
     },
     shader::Shader,
 };
@@ -64,3 +59,23 @@ pub fn create_pipeline(
     )
 }
         
+
+pub fn dispatch_compute(
+    pass: &mut ComputePass,
+    pipeline: &ComputePipeline,
+    bind_groups: &[&BindGroup],
+    push_constants: Option<&[u8]>,
+    workgroups: u32,
+) {
+    pass.set_pipeline(pipeline);
+
+    for (i, bg) in bind_groups.iter().enumerate() {
+        pass.set_bind_group(i as u32, *bg, &[]);
+    }
+
+    if let Some(bytes) = push_constants {
+        pass.set_push_constants(0, bytes);
+    }
+
+    pass.dispatch_workgroups(workgroups, 1, 1);
+}

@@ -38,6 +38,9 @@ The `PARTICLE_MAX` size is defined as a const in `main.rs`.
 
 ## Simulation / Compute Shader – Order of Operations
 
+Begin switchig from RenderNode System to a System which calls all compute shaders.
+
+
 ### Buffer Initialization
 
 - In `simulation/system` all **shared GPU buffers** are created.

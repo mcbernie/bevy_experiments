@@ -3,20 +3,14 @@ use bevy::{
     render::{
         render_asset::RenderAssets,
         render_resource::{
-            BindGroupEntry,
-            BindGroupLayoutDescriptor,
-            BufferDescriptor,
-            BufferUsages,
-            ComputePipelineDescriptor,
-            PipelineCache,
-            ShaderStages,
-            UniformBuffer,
-            binding_types::{storage_buffer, storage_buffer_read_only, uniform_buffer},
+            BindGroupEntry, BindGroupLayoutDescriptor, BufferDescriptor, BufferUsages, CommandEncoderDescriptor, ComputePassDescriptor, ComputePipelineDescriptor, PipelineCache, ShaderStages, UniformBuffer, binding_types::{storage_buffer, storage_buffer_read_only, uniform_buffer}
         },
         renderer::{RenderDevice, RenderQueue},
         storage::GpuShaderStorageBuffer,
-    },
+    }, ui::update,
 };
+
+use crate::{FIXED_DT, PARTICLE_COUNT, simulation::{gpu_sort::{CountSortComputePipeline, InternalCountSortBuffers, PreparedCountSortComputeBindGroup, run_count_sort_compute}, helper::dispatch_compute, spatial_hash::{self, PreparedSpatialHashComputeBindGroup, SpatialHashComputePipeline, run_spatial_hash_compute_pipeline}}};
 
 use super::{
     assets::SimulationParams,
@@ -30,6 +24,259 @@ use super::{
     resources::SimulationComputePipeline,
 };
 
+#[derive(Resource, Default)]
+pub struct SimulationRunGuard {
+   pub last_simulated_time: f64,
+}
+
+pub fn run_simulation(
+    mut guard: ResMut<SimulationRunGuard>,
+    time: Res<Time>,
+    render_device: Res<RenderDevice>,
+    render_queue: Res<RenderQueue>,
+    pipeline_cache: Res<PipelineCache>,
+    // all pipelines
+    simulation_pipelines: Res<SimulationComputePipeline>,
+    count_sort_pipelines: Res<CountSortComputePipeline>,
+    spatial_hash_pipelines: Res<SpatialHashComputePipeline>,
+
+
+    query: Query<(Entity, 
+        &PreparedSimulationBindGroup, 
+        &PreparedCountSortComputeBindGroup,
+        &PreparedSpatialHashComputeBindGroup, 
+        &InternalCountSortBuffers, 
+        &InternalSimulationBuffers,
+        &SimulationParams
+    )>
+) {
+    let now = time.elapsed_secs_f64();
+
+    if guard.last_simulated_time == now {
+        warn!("Skipping simulation step, already simulated for this frame");
+        return; // dieses Render-Frame schon simuliert
+    }
+
+    let external_forces = match pipeline_cache.get_compute_pipeline(simulation_pipelines.external_forces) {
+        Some(p) => p,
+        None => return,
+    };
+    let spatial_hash = match pipeline_cache.get_compute_pipeline(simulation_pipelines.spatial_hash) {
+        Some(p) => p,
+        None => return,
+    };
+    let reorder = match pipeline_cache.get_compute_pipeline(simulation_pipelines.reorder) {
+        Some(p) => p,
+        None => return,
+    };
+    let reorder_copy_back = match pipeline_cache.get_compute_pipeline(simulation_pipelines.reorder_copy_back) {
+        Some(p) => p,
+        None => return,
+    };
+    let calculate_densities = match pipeline_cache.get_compute_pipeline(simulation_pipelines.calculate_densities) {
+        Some(p) => p,
+        None => return,
+    };
+    let calculate_pressure_force = match pipeline_cache.get_compute_pipeline(simulation_pipelines.calculate_pressure_force) {
+        Some(p) => p,
+        None => return,
+    };
+    let calculate_viscosity = match pipeline_cache.get_compute_pipeline(simulation_pipelines.calculate_viscosity) {
+        Some(p) => p,
+        None => return,
+    };
+    let update_positions = match pipeline_cache.get_compute_pipeline(simulation_pipelines.update_positions) {
+        Some(p) => p,
+        None => return,
+    };
+
+    // spatial hash pipelines
+    let sh_initialize_offsets = match pipeline_cache.get_compute_pipeline(spatial_hash_pipelines.initialize_offsets) {
+        Some(p) => p,
+        None => return,
+    };
+    let sh_calculate_offsets = match pipeline_cache.get_compute_pipeline(spatial_hash_pipelines.calculate_offsets) {
+        Some(p) => p,
+        None => return,
+    };
+
+    // count sort pipelines
+    let cs_clear_counts = match pipeline_cache.get_compute_pipeline(count_sort_pipelines.clear_counts) {
+        Some(p) => p,
+        None => return,
+    };
+    let cs_count = match pipeline_cache.get_compute_pipeline(count_sort_pipelines.count) {
+        Some(p) => p,
+        None => return,
+    };
+    let cs_scan = match pipeline_cache.get_compute_pipeline(count_sort_pipelines.scan) {
+        Some(p) => p,
+        None => return,
+    };
+    let cs_combine = match pipeline_cache.get_compute_pipeline(count_sort_pipelines.combine) {
+        Some(p) => p,
+        None => return,
+    };
+    let cs_scatter_output = match pipeline_cache.get_compute_pipeline(count_sort_pipelines.scatter_output) {
+        Some(p) => p,
+        None => return,
+    };
+    let cs_copy_back = match pipeline_cache.get_compute_pipeline(count_sort_pipelines.copy_back) {
+        Some(p) => p,
+        None => return,
+    };
+
+    let max_timestep_fps = 60.0;
+    let max_delta_time = if max_timestep_fps > 0.0 { 1.0 / max_timestep_fps } else { f32::INFINITY }; // If framerate dips too low, run the simulation slower than real-time
+    let active_time_scale = 1.0; // Time.timeScale equivalent
+    let iterations_per_frame = 3.0; // number of simulation steps per frame
+    let mut dt = f32::min(time.delta_secs() * active_time_scale, max_delta_time);
+
+    if guard.last_simulated_time == 0.0 {
+        // first run, avoid large delta time
+        dt = 0.0
+    }
+    if dt >= 0.014 {
+        warn!("Running simulation step with dt = {}", dt);
+    }
+    let sub_step_delta_time = dt / iterations_per_frame;
+
+    for (
+        _entity, 
+        simulation_bg, 
+        count_sort_bg, 
+        spatial_hash_bg, 
+        internal_count_sort_buffers,
+        _internal_simulation_buffers,
+        params
+    ) in &query {
+
+        let mut encoder = render_device
+            .create_command_encoder(
+                &CommandEncoderDescriptor { 
+                    label: Some("simulation_encoder"),
+                }
+            );
+        for _i in 0..(iterations_per_frame as u32) {
+            let particle_count = params.particle_count;
+            let wg_size = (particle_count + 255) / 256;
+
+            //let delta = time.delta_secs();
+            //let delta = time.delta_secs() / 100.0;
+            let delta = sub_step_delta_time;
+            let binary_delta = Some(bytemuck::bytes_of(&delta));
+
+            // all the simulations step here
+
+            {
+
+                let mut pass = encoder.begin_compute_pass(&ComputePassDescriptor {
+                    label: Some("final_simulation_compute"),
+                    ..Default::default()
+                });
+
+
+                dispatch_compute(
+                    &mut pass, 
+                    external_forces, 
+                    &[&simulation_bg.bind_group], 
+                    binary_delta, 
+                    wg_size
+                );
+
+                // 2. Spatial hash
+                dispatch_compute(
+                    &mut pass, 
+                    spatial_hash, 
+                    &[&simulation_bg.bind_group], 
+                    None, 
+                    wg_size
+                );
+
+                // run count_sort
+                run_count_sort_compute(
+                    &render_queue, 
+                    &mut pass,
+                    &cs_clear_counts,
+                    &cs_count,
+                    &cs_scan,
+                    &cs_combine,
+                    &cs_scatter_output,
+                    &cs_copy_back,
+                    &count_sort_bg,
+                    &internal_count_sort_buffers,
+                    particle_count,
+                );
+
+                // run spatial_hash
+                run_spatial_hash_compute_pipeline(
+                    &mut pass,
+                    &sh_initialize_offsets,
+                    &sh_calculate_offsets,
+                    &spatial_hash_bg,
+                    wg_size,
+                );
+
+                dispatch_compute(
+                    &mut pass, 
+                    reorder, 
+                    &[&simulation_bg.bind_group, &simulation_bg.write_back_bind_group], 
+                    None, 
+                    wg_size
+                );
+
+                dispatch_compute(
+                    &mut pass, 
+                    reorder_copy_back, 
+                    &[&simulation_bg.bind_group, &simulation_bg.write_back_bind_group], 
+                    None, 
+                    wg_size
+                );
+
+                // calculate densities
+                dispatch_compute(
+                    &mut pass, 
+                    calculate_densities, 
+                    &[&simulation_bg.bind_group], 
+                    None, 
+                    wg_size
+                );
+
+                // calculate pressure forces
+                dispatch_compute(
+                    &mut pass, 
+                    calculate_pressure_force, 
+                    &[&simulation_bg.bind_group], 
+                    binary_delta, 
+                    wg_size
+                );
+
+                // calculate viscosity forces
+                dispatch_compute(
+                    &mut pass, 
+                    calculate_viscosity, 
+                    &[&simulation_bg.bind_group], 
+                    binary_delta, 
+                    wg_size
+                );
+
+                // finaly update positions
+                dispatch_compute(
+                    &mut pass, 
+                    update_positions, 
+                    &[&simulation_bg.bind_group], 
+                    binary_delta, 
+                    wg_size
+                );
+            }
+        }
+
+        render_queue.submit(Some(encoder.finish()));
+
+    }
+
+    guard.last_simulated_time = now;
+}
 
 /// Update the simulation uniform buffer if parameters have changed
 /// which represents the simulation parameters like gravity, box size, etc.
