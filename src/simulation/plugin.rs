@@ -58,6 +58,7 @@ impl Plugin for SimulationPlugin {
         .register_type::<SimulationParams>()
         .add_plugins(ExtractComponentPlugin::<SimulationBuffers>::default());
 
+        // make math.wgsl shader available for other shaders (#import)
         load_internal_asset!(
             app,
             MATH_SHADER_HELPER,
@@ -68,10 +69,8 @@ impl Plugin for SimulationPlugin {
         let render_app = app.sub_app_mut(RenderApp);
 
         render_app
-            // Extraction synchronisiere Daten von der GameApp zur RenderApp
             .add_systems(RenderStartup,
                 (init_compute_pipeline, init_count_sort_compute_pipeline, init_spatial_hash_compute_pipeline),
-
             )
             .add_systems(
                 Render,
@@ -100,20 +99,23 @@ impl Plugin for SimulationPlugin {
 
             ));
         
-        // instead of using a compute system, i try to create a graph node
-        // can a node works if we need to query components short before dispatch_workgroups?
         let mut render_graph = render_app.world_mut().resource_mut::<RenderGraph>();
+        
         render_graph.add_node(StartSimulationSystemLabel, StartSimulationNode::default());
         render_graph.add_node(CountSortLabel, CountSortNode::default());
         render_graph.add_node(SpatialHashSystemLabel, SpatialHashNode::default());
         render_graph.add_node(FinalSimulationSystemLabel, FinalSimulationNode::default());
 
+        // Begin the simulation
         render_graph.add_node_edge(StartSimulationSystemLabel, CountSortLabel);
+        // run the count-sort algorithm
         render_graph.add_node_edge(CountSortLabel, SpatialHashSystemLabel);
+
+        // finish the simulation step by calculate the spatial_hash
         render_graph.add_node_edge(SpatialHashSystemLabel, FinalSimulationSystemLabel);
+
+        // do all the simulation on sorted positions and update positions and velocities
         render_graph.add_node_edge(FinalSimulationSystemLabel, CameraDriverLabel);
-
-
 
     }
 }

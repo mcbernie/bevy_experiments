@@ -17,16 +17,11 @@ pub fn spawn_simulation_once(
 ) {
 
     info!("Spawning particle simulation.");
-
-    use rand::Rng;
-
-    let mut rng = rand::rng();
-
     let mut pos_data = Vec::with_capacity(PARTICLE_COUNT as usize);
     let mut vel_data = Vec::with_capacity(PARTICLE_COUNT as usize);
 
+    // create a grid of particles inside the bound box
     let simulation_params = SimulationParams::default();
-
     let bound_box =simulation_params.bounds_size;
 
     let volume = bound_box.x * bound_box.y * bound_box.z;
@@ -36,7 +31,6 @@ pub fn spawn_simulation_once(
     let nx = (bound_box.x / spacing).floor() as usize;
     let ny = (bound_box.y / spacing).floor() as usize;
     let nz = (bound_box.z / spacing).floor() as usize;
-
 
     let mut count = 0;
 
@@ -60,12 +54,10 @@ pub fn spawn_simulation_once(
     }
 
 
-    let positions = storage_buffers.add(
-            ShaderStorageBuffer::from(pos_data.clone()));
+    let positions = storage_buffers.add(ShaderStorageBuffer::from(pos_data.clone()));
+    let velocities = storage_buffers.add(ShaderStorageBuffer::from(vel_data.clone()));
 
-    let velocities = storage_buffers.add(
-            ShaderStorageBuffer::from(vel_data.clone()));
-
+    // currently not used...
     let debug_buffer = ShaderStorageBuffer::from(vec![0u32; PARTICLE_COUNT as usize]);
     let debug_buffer_handle = storage_buffers.add(
         debug_buffer

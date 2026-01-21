@@ -30,7 +30,6 @@ pub struct InternalSimulationBuffers {
     pub densities: Buffer,
 }
 
-
 #[derive(Component)]
 pub struct PreparedSimulationBindGroup {
     pub bind_group: BindGroup,

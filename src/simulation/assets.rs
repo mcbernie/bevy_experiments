@@ -49,7 +49,7 @@ impl Default for SimulationParams {
             pressure_multiplier: 288.0,
             near_pressure_multiplier: 2.15,
             viscosity_strength: 0.1,
-            bounds_size: Vec3::splat(4.0),
+            bounds_size: Vec3::new(10.0, 8.0, 4.0),
             k_spiky_pow2: 15.0 / (PI * f32::powf(smoothing_radius, 5.0)),
             k_spiky_pow3: 15.0 / (PI * f32::powf(smoothing_radius, 6.0)),
             k_spiky_pow2_grad: 15.0 / (PI * f32::powf(smoothing_radius, 5.0)),

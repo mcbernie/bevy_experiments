@@ -1,11 +1,19 @@
-use core::num;
-
 use bevy::{
     prelude::*,
-    render::{render_asset::RenderAssets, render_graph::{Node, NodeRunError, RenderGraphContext, RenderLabel}, render_resource::{BindGroup, ComputePassDescriptor, PipelineCache}, renderer::{RenderContext, RenderQueue}, storage::GpuShaderStorageBuffer},
+    render::{
+        render_graph::{Node, NodeRunError, RenderGraphContext, RenderLabel},
+        render_resource::{BindGroup, ComputePassDescriptor, PipelineCache},
+        renderer::{RenderContext, RenderQueue},
+    },
 };
 
-use crate::{ReadbackBuffer, WORKGROUP_SIZE, simulation::{assets::SimulationParams, gpu_sort::{components::InternalCountSortBuffers, helper::calc_num_groups}}};
+use crate::{
+    WORKGROUP_SIZE,
+    simulation::{
+        assets::SimulationParams,
+        gpu_sort::{components::InternalCountSortBuffers, helper::calc_num_groups},
+    },
+};
 use super::{components::PreparedCountSortComputeBindGroup, resources::CountSortComputePipeline};
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
@@ -117,6 +125,7 @@ impl Node for CountSortNode {
                     ..Default::default()
                 });
 
+            // ---- the scan pass ----
             loop {
                 let num_groups = calc_num_groups(current_item_count, WORKGROUP_SIZE);
 
@@ -126,7 +135,6 @@ impl Node for CountSortNode {
                     .clone();
 
 
-                // ---- scan ----
                 {
                     pass.set_pipeline(&scan);
                     pass.set_push_constants(0, bytemuck::bytes_of(&current_item_count));
@@ -135,8 +143,6 @@ impl Node for CountSortNode {
                     pass.dispatch_workgroups(num_groups, 1, 1);
                 }
 
-
-                // Merke dieses Level
                 levels.push(ScanLevel {
                     item_count: current_item_count,
                     num_groups,
@@ -144,38 +150,21 @@ impl Node for CountSortNode {
                     group_sums_bg: group_sums_bg.clone(),
                 });
 
-                // Abbruchbedingung (Unity: if numGroups <= 1)
                 if num_groups <= 1 {
                     break;
                 }
 
-                // nächstes Level arbeitet auf groupSums
                 current_elements_bg = group_sums_bg;
                 current_item_count = num_groups;
             }
 
-            // Von oben nach unten, Level 0 überspringen
             for level in levels.iter().rev().skip(1) {
-                //let mut pass = render_context
-                //    .command_encoder()
-                //    .begin_compute_pass(&ComputePassDescriptor {
-                //        label: Some("combine_level"),
-                //        ..Default::default()
-                //    });
-
                 pass.set_pipeline(&combine);
                 pass.set_push_constants(0, bytemuck::bytes_of(&level.item_count));
                 pass.set_bind_group(0, &level.elements_bg, &[]);
                 pass.set_bind_group(1, &level.group_sums_bg, &[]);
                 pass.dispatch_workgroups(level.num_groups, 1, 1);
             }
-
-            //let mut pass = render_context
-            //    .command_encoder()
-            //    .begin_compute_pass(&ComputePassDescriptor {
-            //        label: Some("finalize"),
-            //        ..Default::default()
-            //    });
 
             // 4) scatter output
             pass.set_pipeline(&scatter_output);

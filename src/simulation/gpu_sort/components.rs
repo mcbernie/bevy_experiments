@@ -1,4 +1,4 @@
-use bevy::{platform::collections::HashMap, prelude::*, render::render_resource::{BindGroup, Buffer, UniformBuffer}};
+use bevy::{platform::collections::HashMap, prelude::*, render::render_resource::{BindGroup, Buffer}};
 
 #[derive(Component)]
 pub struct PreparedCountSortComputeBindGroup {

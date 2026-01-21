@@ -1,15 +1,17 @@
 use bevy::prelude::*;
-use bevy::render::render_asset::RenderAssets;
-use bevy::render::render_resource::{ComputePassDescriptor, PipelineCache};
-use bevy::render::renderer::RenderContext;
-use bevy::render::render_graph::{Node, NodeRunError, RenderGraphContext, RenderLabel};
-use bevy::render::storage::GpuShaderStorageBuffer;
+use bevy::render::{
+    render_asset::RenderAssets,
+    render_graph::{Node, NodeRunError, RenderGraphContext, RenderLabel},
+    render_resource::{ComputePassDescriptor, PipelineCache},
+    renderer::RenderContext,
+    storage::GpuShaderStorageBuffer,
+};
 
-use super::components::InternalSimulationBuffers;
-use super::resources::SimulationComputePipeline;
+use super::{
+    components::{InternalSimulationBuffers, PreparedSimulationBindGroup},
+    resources::SimulationComputePipeline,
+};
 use crate::{FIXED_DT, PARTICLE_COUNT, ReadbackBuffer};
-
-use super::components::PreparedSimulationBindGroup;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
 pub struct StartSimulationSystemLabel;
@@ -80,9 +82,6 @@ impl Node for FinalSimulationNode {
         let pipeline_cache = world.resource::<PipelineCache>();
         let pipelines = world.resource::<SimulationComputePipeline>();
 
-        
-
-
         let Some(mut bind_groups) = world.try_query::<(Entity, &PreparedSimulationBindGroup, &InternalSimulationBuffers)>()
             else { return Ok(()); };
 
@@ -110,23 +109,25 @@ impl Node for FinalSimulationNode {
             pipeline_cache.get_compute_pipeline(pipelines.reorder_copy_back)
         else { return Ok(()); };
 
-        let readback_buffer_handle = world.resource::<ReadbackBuffer>();
-        let buffers = world.resource::<RenderAssets<GpuShaderStorageBuffer>>();
-        let Some(readback_buffer_storage) = buffers.get(&readback_buffer_handle.handle) else {
-            return Ok(());
-        };
-        let readback_buffer = &readback_buffer_storage.buffer; 
+        // for debugging
+        //let readback_buffer_handle = world.resource::<ReadbackBuffer>();
+        //let buffers = world.resource::<RenderAssets<GpuShaderStorageBuffer>>();
+        //let Some(readback_buffer_storage) = buffers.get(&readback_buffer_handle.handle) else {
+        //    return Ok(());
+        //};
+        //let readback_buffer = &readback_buffer_storage.buffer; 
         
 
         for (_, bg, ib) in bind_groups.iter(world) {
             
-            render_context.command_encoder().copy_buffer_to_buffer(
-                &ib.spatial_keys, 
-                0, 
-                &readback_buffer, 
-                0, 
-                ib.spatial_keys.size()
-            );
+            // for debugging
+            //render_context.command_encoder().copy_buffer_to_buffer(
+            //    &ib.spatial_keys, 
+            //    0, 
+            //    &readback_buffer, 
+            //    0, 
+            //    ib.spatial_keys.size()
+            //);
             
             let mut pass = render_context
                 .command_encoder()
