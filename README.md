@@ -1,5 +1,7 @@
 # Fluid Simulation using Compute Shaders
 
+[![Short Demonstration Video](https://img.youtube.com/vi/3wkAE7lhHnY/0.jpg)](https://www.youtube.com/watch?v=3wkAE7lhHnY)
+
 This project explores a fluid simulation implemented using a compute shader pipeline.
 
 The implementation is inspired by:
