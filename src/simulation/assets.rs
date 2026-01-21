@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use bevy::prelude::*; 
 use bevy::render::extract_component::ExtractComponent;
 use bevy::render::{
@@ -15,17 +17,43 @@ pub struct SimulationParams {
     pub gravity: f32,
     pub smoothing_radius: f32,
     pub collision_damping: f32,
+    pub target_density: f32,
+    pub pressure_multiplier: f32,
+    pub near_pressure_multiplier: f32,
+    pub viscosity_strength: f32,
     pub bounds_size: Vec3,
+    pub k_spiky_pow2 : f32,
+    pub k_spiky_pow3 : f32,
+    pub k_spiky_pow2_grad: f32,
+    pub k_spiky_pow3_grad: f32,
+}
+
+impl SimulationParams {
+    pub fn update_derived_constants(&mut self) {
+        self.k_spiky_pow2 = 15.0 / (PI * f32::powf(self.smoothing_radius, 5.0));
+        self.k_spiky_pow3 = 15.0 / (PI * f32::powf(self.smoothing_radius, 6.0));
+        self.k_spiky_pow2_grad = 15.0 / (PI * f32::powf(self.smoothing_radius, 5.0));
+        self.k_spiky_pow3_grad = 45.0 / (PI * f32::powf(self.smoothing_radius, 6.0));
+    }
 }
 
 impl Default for SimulationParams {
     fn default() -> Self {
+        let smoothing_radius = 0.2;
         SimulationParams {
             particle_count: PARTICLE_COUNT,
-            gravity: -0.81,
-            smoothing_radius: 0.1,
-            collision_damping: 0.5,
-            bounds_size: Vec3::splat(2.0),
+            gravity: -10.0,
+            smoothing_radius: smoothing_radius.clone(),
+            collision_damping: 0.95,
+            target_density: 630.0,
+            pressure_multiplier: 288.0,
+            near_pressure_multiplier: 2.15,
+            viscosity_strength: 0.1,
+            bounds_size: Vec3::splat(4.0),
+            k_spiky_pow2: 15.0 / (PI * f32::powf(smoothing_radius, 5.0)),
+            k_spiky_pow3: 15.0 / (PI * f32::powf(smoothing_radius, 6.0)),
+            k_spiky_pow2_grad: 15.0 / (PI * f32::powf(smoothing_radius, 5.0)),
+            k_spiky_pow3_grad: 45.0 / (PI * f32::powf(smoothing_radius, 6.0)),
         }
     }
 }
@@ -35,9 +63,12 @@ pub fn simulation_params_ui_systems(mut contexts: EguiContexts, mut simulations:
 
     for mut params in simulations.iter_mut() {
         egui::Window::new("Simulation Parameters").show(contexts.ctx_mut().unwrap(), |ui| {
-            ui.add(egui::Slider::new(&mut params.gravity, -5.0..=5.0).text("Gravity"));
+            ui.add(egui::Slider::new(&mut params.gravity, -10.0..=5.0).text("Gravity"));
             ui.add(egui::Slider::new(&mut params.smoothing_radius, 0.01..=0.5).text("Smoothing Radius"));
-            ui.add(egui::Slider::new(&mut params.collision_damping, 0.0..=1.0).text("Collision Damping"));
+            ui.add(egui::Slider::new(&mut params.collision_damping, 0.0..=10.0).text("Collision Damping"));
+            ui.add(egui::Slider::new(&mut params.target_density, 0.0..=1000.0).text("Target Density"));
+            ui.add(egui::Slider::new(&mut params.pressure_multiplier, 0.0..=500.0).text("Pressure Multiplier"));
+            ui.add(egui::Slider::new(&mut params.near_pressure_multiplier, 0.0..=5.0).text("Near Pressure Multiplier"));
 
             ui.allocate_space(egui::Vec2::new(1.0, 10.0));
             ui.label("Bounding: ");

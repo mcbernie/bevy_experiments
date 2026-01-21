@@ -24,9 +24,9 @@ use crate::{
     base::create_plane_mesh, simulation::{material::ParticleMaterial, simulation_params_ui_systems}
 };
 
-pub const PARTICLE_COUNT: u32 = 40000;
+pub const PARTICLE_COUNT: u32 = 10000;
 pub const WORKGROUP_SIZE: u32 = 256; // currently fixed in compute shader
-pub const FIXED_DT: f32 = 1.0 / 120.0;
+pub const FIXED_DT: f32 = 1.0 / 240.0;
 
 mod app_state;
 mod config;
@@ -51,7 +51,7 @@ fn main() {
                 }),
                 ..default()
             }),
-            //ExtractResourcePlugin::<ReadbackBuffer>::default(),
+            ExtractResourcePlugin::<ReadbackBuffer>::default(),
             FpsOverlayPlugin {
                 config: FpsOverlayConfig {
                     text_config: TextFont {
@@ -133,8 +133,8 @@ fn setup_scene(
         },
     ));
 
-    /*
-    let buffer: Vec<u32> = (0..PARTICLE_COUNT as u32).map(|x| 99).collect();
+    let buffer: Vec<u32> = (0..PARTICLE_COUNT as u32).map(|x| 99u32).collect();
+    //let buffer: Vec<u32> = (0..PARTICLE_COUNT as u32).map(|x| 0u32).collect();
     let mut buffer = ShaderStorageBuffer::from(buffer);
     // We need to enable the COPY_SRC usage so we can copy the buffer to the cpu
     buffer.buffer_description.usage = BufferUsages::COPY_SRC | BufferUsages::STORAGE | BufferUsages::MAP_READ | BufferUsages::COPY_DST;
@@ -148,13 +148,10 @@ fn setup_scene(
         }
     );
     commands.spawn(Readback::buffer(buffer)).observe(|event: On<ReadbackComplete>| {
+        //let data: Vec<Vec2> = event.to_shader_type();
         let data: Vec<u32> = event.to_shader_type();
-        if data[0] == 4 && data[1] == 4 && data[2] == 4 {
-        } else {
-            info!("Buffer range {:?}", data);
-        } 
+        //info!("Buffer range {:?}", data);
     });
-    */
 
 }
 

@@ -5,9 +5,9 @@ use bevy::render::renderer::RenderContext;
 use bevy::render::render_graph::{Node, NodeRunError, RenderGraphContext, RenderLabel};
 use bevy::render::storage::GpuShaderStorageBuffer;
 
-use crate::simulation::components::InternalSimulationBuffers;
-use crate::simulation::resources::SimulationComputePipeline;
-use crate::{FIXED_DT, PARTICLE_COUNT};
+use super::components::InternalSimulationBuffers;
+use super::resources::SimulationComputePipeline;
+use crate::{FIXED_DT, PARTICLE_COUNT, ReadbackBuffer};
 
 use super::components::PreparedSimulationBindGroup;
 
@@ -86,6 +86,18 @@ impl Node for FinalSimulationNode {
         let Some(mut bind_groups) = world.try_query::<(Entity, &PreparedSimulationBindGroup, &InternalSimulationBuffers)>()
             else { return Ok(()); };
 
+        let Some(calculate_densities) =
+            pipeline_cache.get_compute_pipeline(pipelines.calculate_densities)
+        else { return Ok(()); };
+
+        let Some(calculate_pressure_force) =
+            pipeline_cache.get_compute_pipeline(pipelines.calculate_pressure_force)
+        else { return Ok(()); };
+
+        let Some(calculate_viscosity) =
+            pipeline_cache.get_compute_pipeline(pipelines.calculate_viscosity)
+        else { return Ok(()); };
+
         let Some(update_positions) =
             pipeline_cache.get_compute_pipeline(pipelines.update_positions)
         else { return Ok(()); };
@@ -98,12 +110,24 @@ impl Node for FinalSimulationNode {
             pipeline_cache.get_compute_pipeline(pipelines.reorder_copy_back)
         else { return Ok(()); };
 
+        let readback_buffer_handle = world.resource::<ReadbackBuffer>();
+        let buffers = world.resource::<RenderAssets<GpuShaderStorageBuffer>>();
+        let Some(readback_buffer_storage) = buffers.get(&readback_buffer_handle.handle) else {
+            return Ok(());
+        };
+        let readback_buffer = &readback_buffer_storage.buffer; 
         
 
         for (_, bg, ib) in bind_groups.iter(world) {
-
             
-
+            render_context.command_encoder().copy_buffer_to_buffer(
+                &ib.spatial_keys, 
+                0, 
+                &readback_buffer, 
+                0, 
+                ib.spatial_keys.size()
+            );
+            
             let mut pass = render_context
                 .command_encoder()
                 .begin_compute_pass(&ComputePassDescriptor {
@@ -112,14 +136,31 @@ impl Node for FinalSimulationNode {
                 });
             
 
+            pass.set_pipeline(reorder);
             pass.set_bind_group(0, &bg.bind_group, &[]);
             pass.set_bind_group(1, &bg.write_back_bind_group, &[]);
-            pass.set_pipeline(reorder);
             pass.dispatch_workgroups((PARTICLE_COUNT + 255) / 256, 1, 1);
 
+            pass.set_pipeline(reorder_copy_back);
             pass.set_bind_group(0, &bg.bind_group, &[]);
             pass.set_bind_group(1, &bg.write_back_bind_group, &[]);
-            pass.set_pipeline(reorder_copy_back);
+            pass.dispatch_workgroups((PARTICLE_COUNT + 255) / 256, 1, 1);
+
+            // calculate densities
+            pass.set_pipeline(calculate_densities);
+            pass.set_bind_group(0, &bg.bind_group, &[]);
+            pass.dispatch_workgroups((PARTICLE_COUNT + 255) / 256, 1, 1);
+
+            // calculate pressure forces
+            pass.set_pipeline(calculate_pressure_force);
+            pass.set_bind_group(0, &bg.bind_group, &[]);
+            pass.set_push_constants(0, bytemuck::bytes_of(&FIXED_DT));
+            pass.dispatch_workgroups((PARTICLE_COUNT + 255) / 256, 1, 1);
+
+            // calculate viscosity forces
+            pass.set_pipeline(calculate_viscosity);
+            pass.set_bind_group(0, &bg.bind_group, &[]);
+            pass.set_push_constants(0, bytemuck::bytes_of(&FIXED_DT));
             pass.dispatch_workgroups((PARTICLE_COUNT + 255) / 256, 1, 1);
 
             // finaly update positions

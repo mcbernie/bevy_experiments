@@ -25,14 +25,40 @@ pub fn spawn_simulation_once(
     let mut pos_data = Vec::with_capacity(PARTICLE_COUNT as usize);
     let mut vel_data = Vec::with_capacity(PARTICLE_COUNT as usize);
 
-    for _ in 0..PARTICLE_COUNT {
-        let x = rng.random_range(-0.8..0.8);
-        let y = rng.random_range(0.8..1.8);
-        let z = rng.random_range(-0.8..0.8);
+    let simulation_params = SimulationParams::default();
 
-        pos_data.push([x, y, z, 0.0]);
-        vel_data.push([0.0, 0.0, 0.0, 0.0]);
+    let bound_box =simulation_params.bounds_size;
+
+    let volume = bound_box.x * bound_box.y * bound_box.z;
+    let volume_per_particle = volume / PARTICLE_COUNT as f32;
+    let spacing = volume_per_particle.cbrt();
+
+    let nx = (bound_box.x / spacing).floor() as usize;
+    let ny = (bound_box.y / spacing).floor() as usize;
+    let nz = (bound_box.z / spacing).floor() as usize;
+
+
+    let mut count = 0;
+
+    for z in 0..nz {
+        for y in 0..ny {
+            for x in 0..nx {
+                if count >= PARTICLE_COUNT { break; }
+
+                let pos = Vec3::new(
+                    (x as f32 + 0.5) * spacing - bound_box.x * 0.5,
+                    (y as f32 + 0.5) * spacing,
+                    (z as f32 + 0.5) * spacing - bound_box.z * 0.5,
+                );
+
+                pos_data.push([pos.x, pos.y, pos.z, 0.0]);
+                vel_data.push([0.0, 0.0, 0.0, 0.0]);
+
+                count += 1;
+            }
+        }
     }
+
 
     let positions = storage_buffers.add(
             ShaderStorageBuffer::from(pos_data.clone()));
@@ -70,9 +96,8 @@ pub fn spawn_simulation_once(
             positions,
             velocities,
             debug_buffer: debug_buffer_handle.clone(),
-            active_index: 0,
         },
-        SimulationParams::default(),
+        simulation_params,
         Transform::IDENTITY,
         GlobalTransform::IDENTITY,
         InheritedVisibility::VISIBLE,

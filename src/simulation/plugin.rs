@@ -1,15 +1,8 @@
 
 use bevy::{
-    prelude::*,
-    render::{
-        extract_component::ExtractComponentPlugin,
-        graph::CameraDriverLabel,
-        render_graph::RenderGraph,
-        Render,
-        RenderApp,
-        RenderStartup,
-        RenderSystems,
-    },
+    asset::{load_internal_asset, uuid_handle}, prelude::*, render::{
+        Render, RenderApp, RenderStartup, RenderSystems, extract_component::ExtractComponentPlugin, graph::CameraDriverLabel, render_graph::RenderGraph
+    }
 };
 
 use super::{
@@ -32,10 +25,11 @@ use super::{
         spawn_simulation_once,
         update_simulation_gizmo,
     },
-    sim::{
+    systems::{
         init_compute_pipeline,
         init_simulation_system,
         prepare_simulation_bind_groups,
+        update_simulation_uniform,
     },
     spatial_hash::{
         SpatialHashNode,
@@ -43,11 +37,10 @@ use super::{
         init_spatial_hash_compute_pipeline,
         prepare_spatial_hash_bind_groups,
     },
-    systems::update_simulation_uniform,
 };
 
-//const SIM_DATA: Handle<Shader> =
-//    uuid_handle!("990ee5ac-3d4a-4593-841f-6b46f02abcb4");
+const MATH_SHADER_HELPER: Handle<Shader> =
+    uuid_handle!("990ee5ac-3d4a-4593-841f-6b46f02abcb4");
 
 pub struct SimulationPlugin;
 
@@ -65,16 +58,15 @@ impl Plugin for SimulationPlugin {
         .register_type::<SimulationParams>()
         .add_plugins(ExtractComponentPlugin::<SimulationBuffers>::default());
 
-        // load_internal_asset!(
-        //     app,
-        //     SIM_DATA,
-        //     "shaders/sim_data.wgsl",
-        //     Shader::from_wgsl
-        // );
+        load_internal_asset!(
+            app,
+            MATH_SHADER_HELPER,
+            "shaders/math.wgsl",
+            Shader::from_wgsl
+        );
 
         let render_app = app.sub_app_mut(RenderApp);
 
-        //render_app.insert_resource(SimulationSwapState::default());
         render_app
             // Extraction synchronisiere Daten von der GameApp zur RenderApp
             .add_systems(RenderStartup,
@@ -119,7 +111,7 @@ impl Plugin for SimulationPlugin {
         render_graph.add_node_edge(StartSimulationSystemLabel, CountSortLabel);
         render_graph.add_node_edge(CountSortLabel, SpatialHashSystemLabel);
         render_graph.add_node_edge(SpatialHashSystemLabel, FinalSimulationSystemLabel);
-        render_graph.add_node_edge(FinalSimulationSystemLabel, CameraDriverLabel)
+        render_graph.add_node_edge(FinalSimulationSystemLabel, CameraDriverLabel);
 
 
 

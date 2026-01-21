@@ -8,7 +8,6 @@ mod assets;
 mod node;
 mod spatial_hash;
 mod gpu_sort;
-mod sim;
 mod helper;
 
 pub use plugin::SimulationPlugin;
