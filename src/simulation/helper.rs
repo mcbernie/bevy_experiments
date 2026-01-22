@@ -1,4 +1,5 @@
 use bevy::{
+    prelude::*,
     asset::Handle,
     ecs::system::Res,
     render::render_resource::{
@@ -78,4 +79,17 @@ pub fn dispatch_compute(
     }
 
     pass.dispatch_workgroups(workgroups, 1, 1);
+}
+
+pub fn random_in_unit_sphere(rng: &mut impl rand::Rng) -> Vec3 {
+    loop {
+        let v = Vec3::new(
+            rng.random_range(-1.0..1.0),
+            rng.random_range(-1.0..1.0),
+            rng.random_range(-1.0..1.0),
+        );
+        if v.length_squared() <= 1.0 {
+            return v;
+        }
+    }
 }

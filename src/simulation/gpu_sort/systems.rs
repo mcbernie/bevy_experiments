@@ -31,7 +31,7 @@ struct ScanLevel {
 }
 
 pub fn run_count_sort_compute(
-    queue: &Res<RenderQueue>,
+    queue: &RenderQueue,
     pass: &mut ComputePass,
     clear_counts: &ComputePipeline,
     count: &ComputePipeline,

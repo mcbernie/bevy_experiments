@@ -5,7 +5,7 @@ use bevy::{
     }
 };
 
-use crate::simulation::systems::{SimulationRunGuard, run_simulation};
+use crate::simulation::{node::{SimulationGraphLabel, SimulationNode}, systems::{SimulationRunGuard, run_simulation}};
 
 use super::{
     assets::SimulationParams,
@@ -97,32 +97,34 @@ impl Plugin for SimulationPlugin {
                 prepare_spatial_hash_bind_groups
                     .in_set(RenderSystems::PrepareBindGroups),
 
-            ))
-            .add_systems(Render, 
-                run_simulation.in_set(RenderSystems::Queue),
-            );
+            ));
+            // System based rendering of the simulation
+            //.add_systems(Render, 
+            //    run_simulation.in_set(RenderSystems::Queue),
+            //);
         
-        /*
-        DISABLED - use render system instead
-
+        // render graph based simulation
         let mut render_graph = render_app.world_mut().resource_mut::<RenderGraph>();
+
+        // next try, put all different nodes to one node
+        render_graph.add_node(SimulationGraphLabel, SimulationNode::default());
+        render_graph.add_node_edge(SimulationGraphLabel, CameraDriverLabel);
         
-        render_graph.add_node(StartSimulationSystemLabel, StartSimulationNode::default());
-        render_graph.add_node(CountSortLabel, CountSortNode::default());
-        render_graph.add_node(SpatialHashSystemLabel, SpatialHashNode::default());
-        render_graph.add_node(FinalSimulationSystemLabel, FinalSimulationNode::default());
+        //render_graph.add_node(StartSimulationSystemLabel, StartSimulationNode::default());
+        //render_graph.add_node(CountSortLabel, CountSortNode::default());
+        //render_graph.add_node(SpatialHashSystemLabel, SpatialHashNode::default());
+        //render_graph.add_node(FinalSimulationSystemLabel, FinalSimulationNode::default());
 
-        // Begin the simulation
-        render_graph.add_node_edge(StartSimulationSystemLabel, CountSortLabel);
-        // run the count-sort algorithm
-        render_graph.add_node_edge(CountSortLabel, SpatialHashSystemLabel);
+        //// Begin the simulation
+        //render_graph.add_node_edge(StartSimulationSystemLabel, CountSortLabel);
+        //// run the count-sort algorithm
+        //render_graph.add_node_edge(CountSortLabel, SpatialHashSystemLabel);
 
-        // finish the simulation step by calculate the spatial_hash
-        render_graph.add_node_edge(SpatialHashSystemLabel, FinalSimulationSystemLabel);
+        //// finish the simulation step by calculate the spatial_hash
+        //render_graph.add_node_edge(SpatialHashSystemLabel, FinalSimulationSystemLabel);
 
-        // do all the simulation on sorted positions and update positions and velocities
-        render_graph.add_node_edge(FinalSimulationSystemLabel, CameraDriverLabel);
-        */
+        //// do all the simulation on sorted positions and update positions and velocities
+        //render_graph.add_node_edge(FinalSimulationSystemLabel, CameraDriverLabel);
 
     }
 }

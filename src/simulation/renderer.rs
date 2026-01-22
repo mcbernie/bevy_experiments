@@ -2,7 +2,7 @@ use bevy::{
     asset::RenderAssetUsages, color::palettes::css::LIME, mesh::PrimitiveTopology, prelude::*, render::storage::ShaderStorageBuffer
 };
 
-use crate::{PARTICLE_COUNT, simulation::assets::SimulationParams};
+use crate::{JITTER_STRENGTH, PARTICLE_COUNT, simulation::{self, assets::SimulationParams, helper::random_in_unit_sphere}};
 
 use super::{
     material::ParticleMaterial, 
@@ -15,43 +15,58 @@ pub fn spawn_simulation_once(
     mut materials: ResMut<Assets<ParticleMaterial>>,
     mut storage_buffers: ResMut<Assets<ShaderStorageBuffer>>,
 ) {
+    let mut simulation_params = SimulationParams::default();
 
     info!("Spawning particle simulation.");
     let mut pos_data = Vec::with_capacity(PARTICLE_COUNT as usize);
     let mut vel_data = Vec::with_capacity(PARTICLE_COUNT as usize);
 
-    // create a grid of particles inside the bound box
-    let simulation_params = SimulationParams::default();
-    let bound_box =simulation_params.bounds_size;
+    let particle_count: usize = PARTICLE_COUNT as usize;
+    let smoothing_radius: f32 = simulation_params.smoothing_radius;
+    let jitter_strength: f32 = JITTER_STRENGTH; // z. B. 0.05
 
-    let volume = bound_box.x * bound_box.y * bound_box.z;
-    let volume_per_particle = volume / PARTICLE_COUNT as f32;
-    let spacing = volume_per_particle.cbrt();
+    let particles_per_axis = (particle_count as f32).cbrt().ceil() as usize;
+    let particles_per_axis = particles_per_axis.max(1);
 
-    let nx = (bound_box.x / spacing).floor() as usize;
-    let ny = (bound_box.y / spacing).floor() as usize;
-    let nz = (bound_box.z / spacing).floor() as usize;
+    let spacing = smoothing_radius * 0.9;
 
-    let mut count = 0;
+    let size_x = (particles_per_axis - 1) as f32 * spacing;
+    let size_y = (particles_per_axis - 1) as f32 * spacing;
+    let size_z = (particles_per_axis - 1) as f32 * spacing;
 
-    for z in 0..nz {
-        for y in 0..ny {
-            for x in 0..nx {
-                if count >= PARTICLE_COUNT { break; }
+    // set bounds based on particle grid size
+    let bounds = Vec3::new(size_x, size_y, size_z);
+    simulation_params.bounds_size = bounds;
 
-                let pos = Vec3::new(
-                    (x as f32 + 0.5) * spacing - bound_box.x * 0.5,
-                    (y as f32 + 0.5) * spacing,
-                    (z as f32 + 0.5) * spacing - bound_box.z * 0.5,
-                );
 
-                pos_data.push([pos.x, pos.y, pos.z, 0.0]);
+    let mut rng = rand::rng();
+    let mut spawned = 0;
+
+    for x in 0..particles_per_axis {
+        for y in 0..particles_per_axis {
+            for z in 0..particles_per_axis {
+                if spawned >= particle_count {
+                    break;
+                }
+
+                let tx = x as f32 / (particles_per_axis - 1).max(1) as f32;
+                let ty = y as f32 / (particles_per_axis - 1).max(1) as f32;
+                let tz = z as f32 / (particles_per_axis - 1).max(1) as f32;
+
+                let px = (tx - 0.5) * bounds.x;
+                let py = ty * bounds.y;
+                let pz = (tz - 0.5) * bounds.z;
+
+                let jitter = random_in_unit_sphere(&mut rng) * jitter_strength * spacing;
+
+                pos_data.push([px + jitter.x, py + jitter.y, pz + jitter.z, 0.0]);
                 vel_data.push([0.0, 0.0, 0.0, 0.0]);
 
-                count += 1;
+                spawned += 1;
             }
         }
     }
+
 
 
     let positions = storage_buffers.add(ShaderStorageBuffer::from(pos_data.clone()));
