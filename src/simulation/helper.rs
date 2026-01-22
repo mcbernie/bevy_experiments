@@ -1,11 +1,5 @@
 use bevy::{
-    prelude::*,
-    asset::Handle,
-    ecs::system::Res,
-    render::render_resource::{
-        BindGroup, BindGroupLayoutDescriptor, CachedComputePipelineId, ComputePass, ComputePipeline, ComputePipelineDescriptor, PipelineCache, PushConstantRange, ShaderStages
-    },
-    shader::Shader,
+    asset::Handle, ecs::system::Res, prelude::*, render::{render_resource::*, renderer::RenderDevice}, shader::Shader
 };
 
 
@@ -92,4 +86,22 @@ pub fn random_in_unit_sphere(rng: &mut impl rand::Rng) -> Vec3 {
             return v;
         }
     }
+}
+
+/// create a 3D texture for density map storage
+pub fn create_density_texture(
+    device: &RenderDevice,
+    size: Extent3d,
+) -> Texture {
+    device.create_texture(&TextureDescriptor {
+        label: Some("density_map"),
+        size,
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: TextureDimension::D3,
+        format: TextureFormat::R16Float,
+        usage: TextureUsages::STORAGE_BINDING
+            | TextureUsages::TEXTURE_BINDING,
+        view_formats: &[],
+    })
 }

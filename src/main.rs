@@ -36,6 +36,7 @@ mod config;
 mod camera;
 mod base;
 mod simulation;
+mod rendering;
 
 #[derive(Resource, ExtractResource, Clone)]
 pub struct ReadbackBuffer { 
