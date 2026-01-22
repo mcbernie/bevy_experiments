@@ -5,6 +5,7 @@ use crate::simulation::{components::DensityMap, marching_cubes::{components::Mar
 #[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
 pub struct MarchingCubesLabel;
 
+#[derive(Default)]
 pub struct MarchingCubesNode;
 
 impl Node for MarchingCubesNode {

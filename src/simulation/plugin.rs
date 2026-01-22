@@ -5,23 +5,15 @@ use bevy::{
     }
 };
 
-use crate::simulation::{marching_cubes::{init_marching_cubes_lut, init_marching_cubes_pipeline, init_marching_cubes_simulation_system, prepare_marching_cubes_bind_group}, node::{SimulationGraphLabel, SimulationNode}, systems::prepare_density_map};
+use crate::simulation::{marching_cubes::{MarchingCubesLabel, MarchingCubesNode, init_marching_cubes_lut, init_marching_cubes_pipeline, init_marching_cubes_simulation_system, prepare_marching_cubes_bind_group}, node::{SimulationGraphLabel, SimulationNode}, systems::prepare_density_map};
 
 use super::{
     assets::SimulationParams,
     components::SimulationBuffers,
     gpu_sort::{
-        CountSortLabel,
-        CountSortNode,
         init_count_sort_compute_pipeline,
         init_count_sort_system,
         prepare_count_sort_bind_groups,
-    },
-    node::{
-        FinalSimulationNode,
-        FinalSimulationSystemLabel,
-        StartSimulationNode,
-        StartSimulationSystemLabel,
     },
     renderer::{
         spawn_simulation_once,
@@ -34,8 +26,6 @@ use super::{
         update_simulation_uniform,
     },
     spatial_hash::{
-        SpatialHashNode,
-        SpatialHashSystemLabel,
         init_spatial_hash_compute_pipeline,
         prepare_spatial_hash_bind_groups,
     },
@@ -109,37 +99,18 @@ impl Plugin for SimulationPlugin {
                     .in_set(RenderSystems::PrepareBindGroups),
                 prepare_spatial_hash_bind_groups
                     .in_set(RenderSystems::PrepareBindGroups),
-                //prepare_marching_cubes_bind_group
-                //    .in_set(RenderSystems::PrepareBindGroups),
+                prepare_marching_cubes_bind_group
+                    .in_set(RenderSystems::PrepareBindGroups),
 
             ));
-            // System based rendering of the simulation
-            //.add_systems(Render, 
-            //    run_simulation.in_set(RenderSystems::Queue),
-            //);
         
-        // render graph based simulation
         let mut render_graph = render_app.world_mut().resource_mut::<RenderGraph>();
 
-        // next try, put all different nodes to one node
         render_graph.add_node(SimulationGraphLabel, SimulationNode::default());
-        render_graph.add_node_edge(SimulationGraphLabel, CameraDriverLabel);
+        render_graph.add_node(MarchingCubesLabel, MarchingCubesNode::default());
+        render_graph.add_node_edge(SimulationGraphLabel, MarchingCubesLabel);
+        render_graph.add_node_edge(MarchingCubesLabel, CameraDriverLabel);
         
-        //render_graph.add_node(StartSimulationSystemLabel, StartSimulationNode::default());
-        //render_graph.add_node(CountSortLabel, CountSortNode::default());
-        //render_graph.add_node(SpatialHashSystemLabel, SpatialHashNode::default());
-        //render_graph.add_node(FinalSimulationSystemLabel, FinalSimulationNode::default());
-
-        //// Begin the simulation
-        //render_graph.add_node_edge(StartSimulationSystemLabel, CountSortLabel);
-        //// run the count-sort algorithm
-        //render_graph.add_node_edge(CountSortLabel, SpatialHashSystemLabel);
-
-        //// finish the simulation step by calculate the spatial_hash
-        //render_graph.add_node_edge(SpatialHashSystemLabel, FinalSimulationSystemLabel);
-
-        //// do all the simulation on sorted positions and update positions and velocities
-        //render_graph.add_node_edge(FinalSimulationSystemLabel, CameraDriverLabel);
 
     }
 }
