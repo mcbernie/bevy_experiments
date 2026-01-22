@@ -10,6 +10,7 @@ pub struct SimulationComputePipeline {
     pub reorder: CachedComputePipelineId,
     pub reorder_copy_back: CachedComputePipelineId,
     pub calculate_densities: CachedComputePipelineId,
+    pub update_density: CachedComputePipelineId,
     pub calculate_pressure_force: CachedComputePipelineId,
     pub calculate_viscosity: CachedComputePipelineId,
 }

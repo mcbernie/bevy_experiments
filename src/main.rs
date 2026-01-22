@@ -30,6 +30,7 @@ pub const FIXED_DT: f32 = 1.0 / 120.0;
 pub const SUBSTEPS: u32 = 3;
 pub const JITTER_STRENGTH: f32 = 0.035;
 pub const PARTICLE_SPAWN_DENSITY: u32 = 600;
+pub const DENSITY_TEXTURE_RES: u32 = 150;
 
 mod app_state;
 mod config;

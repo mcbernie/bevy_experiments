@@ -1,6 +1,6 @@
 use bevy::prelude::*; 
 use bevy::render::extract_component::ExtractComponent;
-use bevy::render::render_resource::{Buffer, UniformBuffer};
+use bevy::render::render_resource::{Buffer, Extent3d, Sampler, Texture, TextureView, UniformBuffer};
 use bevy::render::{
     render_resource::BindGroup, 
     storage::ShaderStorageBuffer, 
@@ -28,6 +28,15 @@ pub struct InternalSimulationBuffers {
     pub sort_target_predicted_positions: Buffer,
     pub sort_target_velocity: Buffer,
     pub densities: Buffer,
+    pub density_map_size: Buffer,
+}
+
+#[derive(Component, Clone)]
+pub struct DensityMap {
+    pub texture: Texture,
+    pub view: TextureView,
+    pub sampler: Sampler,
+    pub extent: Extent3d,
 }
 
 #[derive(Component)]

@@ -21,6 +21,9 @@
 
 @group(0) @binding(6) var<storage, read_write> densities: array<vec2<f32>>;
 
+@group(0) @binding(8) var density_map : texture_storage_3d<r16float, write>;
+@group(0) @binding(9) var<uniform> density_map_size : vec4<u32>;
+
 var<push_constant> delta_time: f32;
 
 @group(1) @binding(0)
@@ -63,6 +66,20 @@ fn calculate_densities(@builtin(global_invocation_id) gid: vec3<u32>) {
     //densities[id] = pos.xy;
     densities[id] = d;
 }
+
+@compute @workgroup_size(8, 8, 8)
+fn update_density(@builtin(global_invocation_id) id : vec3<u32>) {
+    if (any(id >= density_map_size.xyz)) {
+        return;
+    }
+
+    let tex_pos = vec3<f32>(id) / (vec3<f32>(density_map_size.xyz) - 1.0);
+    let world_pos = (tex_pos - 0.5) * params.bounds_size;
+
+    let density = calculate_densities_at_point(world_pos);
+    textureStore(density_map, vec3<i32>(id), vec4<f32>(density.x, 0.0, 0.0, 0.0));
+}
+
 
 
 fn pressure_from_density(density: f32) -> f32 {

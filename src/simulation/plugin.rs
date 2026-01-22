@@ -5,7 +5,7 @@ use bevy::{
     }
 };
 
-use crate::simulation::{node::{SimulationGraphLabel, SimulationNode}, systems::{SimulationRunGuard, run_simulation}};
+use crate::simulation::{marching_cubes::{init_marching_cubes_lut, init_marching_cubes_pipeline, init_marching_cubes_simulation_system, prepare_marching_cubes_bind_group}, node::{SimulationGraphLabel, SimulationNode}, systems::prepare_density_map};
 
 use super::{
     assets::SimulationParams,
@@ -71,9 +71,14 @@ impl Plugin for SimulationPlugin {
         let render_app = app.sub_app_mut(RenderApp);
 
         render_app
-            .insert_resource(SimulationRunGuard::default())
             .add_systems(RenderStartup,
-                (init_compute_pipeline, init_count_sort_compute_pipeline, init_spatial_hash_compute_pipeline),
+                (
+                    init_compute_pipeline, 
+                    init_count_sort_compute_pipeline, 
+                    init_spatial_hash_compute_pipeline,
+                    init_marching_cubes_lut,
+                    init_marching_cubes_pipeline,
+                ),
             )
             .add_systems(
                 Render,
@@ -89,6 +94,14 @@ impl Plugin for SimulationPlugin {
                 init_count_sort_system
                     .in_set(RenderSystems::PrepareBindGroups)
                     .before(prepare_count_sort_bind_groups).after(init_simulation_system),
+                
+                init_marching_cubes_simulation_system
+                    .in_set(RenderSystems::PrepareBindGroups)
+                    .before(prepare_marching_cubes_bind_group).after(init_count_sort_system),
+
+                // update or create density map texture
+                prepare_density_map.in_set(RenderSystems::PrepareBindGroups)
+                    .before(prepare_simulation_bind_groups),
 
                 prepare_simulation_bind_groups
                     .in_set(RenderSystems::PrepareBindGroups),
@@ -96,6 +109,8 @@ impl Plugin for SimulationPlugin {
                     .in_set(RenderSystems::PrepareBindGroups),
                 prepare_spatial_hash_bind_groups
                     .in_set(RenderSystems::PrepareBindGroups),
+                //prepare_marching_cubes_bind_group
+                //    .in_set(RenderSystems::PrepareBindGroups),
 
             ));
             // System based rendering of the simulation

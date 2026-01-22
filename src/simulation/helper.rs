@@ -105,3 +105,18 @@ pub fn create_density_texture(
         view_formats: &[],
     })
 }
+
+/// calculate the extent of the density map based on simulation scale and base resolution
+pub fn density_map_extent(scale: Vec3, base_res: u32) -> Extent3d {
+    let max_axis = scale.x.max(scale.y).max(scale.z);
+
+    let w = (scale.x / max_axis * base_res as f32).round() as u32;
+    let h = (scale.y / max_axis * base_res as f32).round() as u32;
+    let d = (scale.z / max_axis * base_res as f32).round() as u32;
+
+    Extent3d {
+        width: w.max(1),
+        height: h.max(1),
+        depth_or_array_layers: d.max(1),
+    }
+}

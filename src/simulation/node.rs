@@ -1,11 +1,9 @@
 use bevy::prelude::*;
 use bevy::render::renderer::RenderQueue;
 use bevy::render::{
-    render_asset::RenderAssets,
     render_graph::{Node, NodeRunError, RenderGraphContext, RenderLabel},
     render_resource::{ComputePassDescriptor, PipelineCache},
     renderer::RenderContext,
-    storage::GpuShaderStorageBuffer,
 };
 
 use super::{
@@ -13,6 +11,7 @@ use super::{
     resources::SimulationComputePipeline,
 };
 use crate::simulation::assets::SimulationParams;
+use crate::simulation::components::DensityMap;
 use crate::simulation::gpu_sort::{CountSortComputePipeline, InternalCountSortBuffers, PreparedCountSortComputeBindGroup, run_count_sort_compute};
 use crate::simulation::helper::dispatch_compute;
 use crate::simulation::spatial_hash::{PreparedSpatialHashComputeBindGroup, SpatialHashComputePipeline, run_spatial_hash_compute_pipeline};
@@ -216,7 +215,14 @@ impl Node for SimulationNode {
             &PreparedSpatialHashComputeBindGroup, 
             &InternalCountSortBuffers, 
             &InternalSimulationBuffers,
-            &SimulationParams
+            &SimulationParams,
+        )>()
+            else { return Ok(()); };
+        
+        let Some(mut density_query) = world.try_query::<(
+            Entity, 
+            &PreparedSimulationBindGroup, 
+            Option<&DensityMap>,
         )>()
             else { return Ok(()); };
 
@@ -241,6 +247,10 @@ impl Node for SimulationNode {
 
         let Some(calculate_densities) =
             pipeline_cache.get_compute_pipeline(simulation_pipelines.calculate_densities)
+        else { return Ok(()); };
+
+        let Some(update_density) =
+            pipeline_cache.get_compute_pipeline(simulation_pipelines.update_density)
         else { return Ok(()); };
 
         let Some(calculate_pressure_force) =
@@ -312,7 +322,7 @@ impl Node for SimulationNode {
                 spatial_hash_bg, 
                 internal_count_sort_buffers,
                 _internal_simulation_buffers,
-                params
+                params,
             ) in entries.iter(world) {
 
                 let particle_count = params.particle_count;
@@ -415,6 +425,24 @@ impl Node for SimulationNode {
             }
         }
 
+        // finaly update density texture
+        for (_entity, simulation_bg, density_map) in density_query.iter(world) {
+            // skip if no density map is present
+            let Some(density_map) = density_map else {
+                continue;
+            };
+
+            let extent = density_map.extent;
+
+            let gx = (extent.width  + 7) / 8;
+            let gy = (extent.height + 7) / 8;
+            let gz = (extent.depth_or_array_layers + 7) / 8;
+
+            pass.set_pipeline(update_density);
+            pass.set_bind_group(0, &simulation_bg.bind_group, &[]);
+            pass.dispatch_workgroups(gx, gy, gz);
+
+        }
         
         Ok(())
     }
