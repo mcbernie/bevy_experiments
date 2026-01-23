@@ -1,47 +1,75 @@
-struct View {
-    view_proj : mat4x4<f32>,
+// -----------------------------------------------------------------------------
+// Uniforms
+// -----------------------------------------------------------------------------
+
+struct ViewData {
+    clip_from_world: mat4x4<f32>,
 };
 
 @group(0) @binding(0)
-var<uniform> view : View;
+var<uniform> view: ViewData;
 
-struct Vertex {
-    position : vec4<f32>, // need to be vec4 for alignment reasons
-    normal   : vec4<f32>,
+struct ModelData {
+    model: mat4x4<f32>,
+};
+
+@group(0) @binding(1)
+var<uniform> model: ModelData;
+
+// -----------------------------------------------------------------------------
+// Geometry storage buffer
+// -----------------------------------------------------------------------------
+
+struct Triangle {
+    a: vec4<f32>,
+    b: vec4<f32>,
+    c: vec4<f32>,
 };
 
 @group(1) @binding(0)
-var<storage, read> vertex_buffer : array<Vertex>;
+var<storage, read> triangles: array<Triangle>;
 
-struct MeshUniform {
-    model : mat4x4<f32>,
-};
-
-@group(2) @binding(0)
-var<uniform> mesh : MeshUniform;
-
+// -----------------------------------------------------------------------------
+// Vertex output
+// -----------------------------------------------------------------------------
 
 struct VertexOut {
-    @builtin(position) clip_position : vec4<f32>,
-    @location(0) normal : vec3<f32>,
+    @builtin(position) clip_position: vec4<f32>,
 };
 
+// -----------------------------------------------------------------------------
+// Vertex shader
+// -----------------------------------------------------------------------------
 
 @vertex
-fn vertex_main(@builtin(vertex_index) vertex_id : u32) -> VertexOut {
-    let v = vertex_buffer[vertex_id];
+fn vertex(@builtin(vertex_index) vertex_index: u32) -> VertexOut {
+    let tri_index = vertex_index / 3u;
+    let vert_in_tri = vertex_index % 3u;
 
-    var out : VertexOut;
-    out.clip_position = view.view_proj * mesh.model * vec4<f32>(v.position, 1.0);
-    out.normal = (model * vec4<f32>(v.normal, 0.0)).xyz;
+    let tri = triangles[tri_index];
+
+    var local_pos: vec3<f32>;
+    if (vert_in_tri == 0u) {
+        local_pos = tri.a.xyz;
+    } else if (vert_in_tri == 1u) {
+        local_pos = tri.b.xyz;
+    } else {
+        local_pos = tri.c.xyz;
+    }
+
+    let world_pos = model.model * vec4<f32>(local_pos, 1.0);
+
+    var out: VertexOut;
+    out.clip_position = view.clip_from_world * world_pos;
     return out;
 }
 
-@fragment
-fn fragment_main(in : VertexOut) -> @location(0) vec4<f32> {
-    let light_dir = normalize(vec3<f32>(0.4, 1.0, 0.3)); // feste Weltlichtquelle
-    let n = normalize(in.normal);
-    let shading = dot(light_dir, n) * 0.5 + 0.5;
+// -----------------------------------------------------------------------------
+// Fragment shader
+// -----------------------------------------------------------------------------
 
-    return material_color * shading;
+@fragment
+fn fragment() -> @location(0) vec4<f32> {
+    // simple debug color
+    return vec4<f32>(0.9, 0.9, 0.9, 1.0);
 }

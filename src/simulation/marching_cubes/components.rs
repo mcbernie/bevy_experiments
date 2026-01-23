@@ -25,4 +25,5 @@ pub struct MarchingCubesBuffers {
 #[derive(Component)]
 pub struct MarchingCubesBindGroup {
     pub bind_group: BindGroup,
+    pub single_triangle_bind_group: BindGroup,
 }

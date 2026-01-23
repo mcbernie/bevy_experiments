@@ -141,6 +141,14 @@ pub fn prepare_marching_cubes_bind_group(
     lut: Res<MarchingCubesLut>,
     query: Query<(Entity, &MarchingCubesBuffers, &DensityMap, &SimulationUniform)>,
 ) {
+
+    let triangle_layout_desc = BindGroupLayoutDescriptor::new(
+        "triangle_layout_desc",
+        &[
+            storage_buffer::<Triangle>(false).build(0, ShaderStages::VERTEX),
+        ],
+    );
+
     for (entity, buffers, density, internal_buffers) in &query {
         let bind_group = render_device.create_bind_group(
             "marching_cubes_bind_group",
@@ -173,6 +181,18 @@ pub fn prepare_marching_cubes_bind_group(
             ],
         );
 
-        commands.entity(entity).insert(MarchingCubesBindGroup { bind_group });
+        let triangle_bind_group = render_device.create_bind_group(
+            "marching_cubes_triangle_bind_group",
+            &pipeline_cache.get_bind_group_layout(&triangle_layout_desc),
+            &[BindGroupEntry {
+                binding: 0,
+                resource: buffers.triangle_buffer.as_entire_binding(),
+            }],
+        );
+
+        commands.entity(entity).insert(MarchingCubesBindGroup { 
+            bind_group,
+            single_triangle_bind_group: triangle_bind_group,
+        });
     }
 }

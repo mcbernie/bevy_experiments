@@ -1,16 +1,24 @@
 use bevy::prelude::*;
 use bevy::render::render_resource::*;
 
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct ViewData {
+    pub clip_from_world: [[f32; 4]; 4],
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct ModelData {
+    pub model: [[f32; 4]; 4],
+}
+
 #[derive(Resource)]
-pub struct MarchingCubesGpu {
-    pub triangle_buffer: Buffer,
-    pub triangle_count: Buffer,
-    pub indirect_args: Buffer,
-
-    pub marching_pipeline: CachedComputePipelineId,
-    pub args_pipeline: CachedComputePipelineId,
-
-    pub bind_group: BindGroup,
+pub struct MarchingCubesRenderResources {
+    pub pipeline: CachedRenderPipelineId,   
+    pub view_buffer: Buffer,
+    pub model_buffer: Buffer,
+    pub model_view_bind_group: BindGroup,
 }
 
 #[derive(Component)]
@@ -27,4 +35,11 @@ pub struct RenderArgsPipeline {
 #[derive(Component)]
 pub struct PreparedRenderArgsBindGroup {
     pub bind_group: BindGroup,
+}
+
+
+#[derive(Resource)]
+pub struct SimRenderPipeline {
+    pub layout: BindGroupLayoutDescriptor,
+    pub model_view_layout: BindGroupLayoutDescriptor,
 }

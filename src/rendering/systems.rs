@@ -2,9 +2,9 @@ use std::num::NonZeroU64;
 
 /// setup bindgroups and pipelines for fluid rendering
 /// 
-use bevy::{prelude::*, render::{render_resource::{binding_types::{storage_buffer, storage_buffer_read_only, storage_buffer_sized}, *}, renderer::*}};
+use bevy::{prelude::*, render::{render_resource::{binding_types::{storage_buffer, storage_buffer_read_only, storage_buffer_read_only_sized, storage_buffer_sized, uniform_buffer_sized}, *}, renderer::*}};
 
-use crate::{rendering::assets::PreparedRenderArgsBindGroup, simulation::MarchingCubesBuffers};
+use crate::{rendering::assets::{MarchingCubesRenderResources, ModelData, PreparedRenderArgsBindGroup, SimRenderPipeline, ViewData}, simulation::{MarchingCubesBuffers, marching_cubes::Triangle}};
 
 use super::assets::RenderArgsPipeline;
 use super::assets::FluidIndirectArgsBuffer;
@@ -113,4 +113,146 @@ pub fn prepare_drawing_args(
         );
     }
 
+}
+
+pub fn init_render_pipeline(
+    mut commands: Commands,
+    pipeline_cache: Res<PipelineCache>,
+    asset_server: Res<AssetServer>,
+) {
+
+    // using DrawIndirectArgs struct from WGPU
+    // Layout
+    let bind_group_layout = BindGroupLayoutDescriptor::new(
+        "render_args_bind_group_layout",
+        &[
+            storage_buffer_sized(false, NonZeroU64::new(std::mem::size_of::<DrawIndirectArgs>() as u64)).build(0, ShaderStages::VERTEX | ShaderStages::FRAGMENT),
+            storage_buffer_read_only::<u32>(false).build(1, ShaderStages::VERTEX | ShaderStages::FRAGMENT),
+        ],
+    );
+
+    let model_view_bind_group_layout = BindGroupLayoutDescriptor::new(
+        "model_view_bind_group_layout",
+        &[
+            storage_buffer_read_only_sized(false, NonZeroU64::new(std::mem::size_of::<ViewData>() as u64)).build(0, ShaderStages::VERTEX | ShaderStages::FRAGMENT),
+            storage_buffer_read_only_sized(false, NonZeroU64::new(std::mem::size_of::<ModelData>() as u64)).build(1, ShaderStages::VERTEX | ShaderStages::FRAGMENT),
+        ],
+    );
+
+
+    // we only create the layouts....
+    commands.insert_resource(SimRenderPipeline {
+        layout: bind_group_layout,
+        model_view_layout: model_view_bind_group_layout,
+    });
+}
+
+
+pub fn prepare_marching_cubes_render_resources(
+    mut commands: Commands,
+    render_device: Res<RenderDevice>,
+    pipeline_cache: Res<PipelineCache>,
+    asset_server: Res<AssetServer>,
+    existing: Option<Res<MarchingCubesRenderResources>>,
+
+) {
+
+    if existing.is_some() {
+        return;
+    }
+
+    let shader = asset_server.load("shaders/fluid_marching_cubes.wgsl");
+
+    let model_view_layout_desc = BindGroupLayoutDescriptor::new(
+        "model_view_layout_desc",
+        &[
+            uniform_buffer_sized(false, NonZeroU64::new(std::mem::size_of::<ViewData>() as u64)).build(0, ShaderStages::VERTEX),
+            uniform_buffer_sized(false, NonZeroU64::new(std::mem::size_of::<ModelData>() as u64)).build(1, ShaderStages::VERTEX),
+        ],
+    );
+
+    let model_view_layout = render_device.create_bind_group_layout(
+        Some("model_view_layout".into()), 
+        &model_view_layout_desc.entries
+    );
+
+    let triangle_layout_desc = BindGroupLayoutDescriptor::new(
+        "triangle_layout_desc",
+        &[
+            storage_buffer_read_only::<Triangle>(false).build(0, ShaderStages::VERTEX),
+        ],
+    );
+
+    let pipeline_id = pipeline_cache.queue_render_pipeline(
+        RenderPipelineDescriptor {
+            label: Some("marching_cubes_pipeline".into()),
+            layout: vec![
+                model_view_layout_desc.clone(),
+                triangle_layout_desc.clone(),
+            ],
+            vertex: VertexState {
+                shader: shader.clone(),
+                entry_point: Some("vertex".into()),
+                buffers: vec![],
+                ..Default::default()
+            },
+            fragment: Some(FragmentState {
+                shader,
+                entry_point: Some("fragment".into()),
+                targets: vec![Some(ColorTargetState {
+                    format: TextureFormat::bevy_default(),
+                    blend: Some(BlendState::ALPHA_BLENDING),
+                    write_mask: ColorWrites::ALL,
+                })],
+                ..Default::default()
+            }),
+            primitive: PrimitiveState {
+                topology: PrimitiveTopology::TriangleList,
+                cull_mode: Some(Face::Back),
+                ..default()
+            },
+            depth_stencil: Some(DepthStencilState {
+                format: TextureFormat::Depth32Float,
+                depth_write_enabled: true,
+                depth_compare: CompareFunction::Less,
+                stencil: default(),
+                bias: default(),
+            }),
+            ..Default::default()
+        },
+    );
+
+    let view_buffer = render_device.create_buffer(&BufferDescriptor {
+        label: Some("marching_cubes_view_uniform"),
+        size: std::mem::size_of::<ViewData>() as u64,
+        usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    });
+
+    let model_buffer = render_device.create_buffer(&BufferDescriptor {
+        label: Some("marching_cubes_model_uniform"),
+        size: std::mem::size_of::<ModelData>() as u64,
+        usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    });
+
+    let model_view_bind_group = render_device.create_bind_group(
+        "marching_cubes_view_and_model_bind_group",
+        &model_view_layout,
+        &[BindGroupEntry {
+            binding: 0,
+            resource: view_buffer.as_entire_binding(),
+        },
+        BindGroupEntry {
+            binding: 1,
+            resource: model_buffer.as_entire_binding(),
+        }],
+    );
+
+    commands.insert_resource(MarchingCubesRenderResources {
+        pipeline: pipeline_id,
+        view_buffer,
+        model_buffer,
+        model_view_bind_group,
+    });
 }
