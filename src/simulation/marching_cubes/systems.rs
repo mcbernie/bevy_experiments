@@ -145,7 +145,7 @@ pub fn prepare_marching_cubes_bind_group(
     let triangle_layout_desc = BindGroupLayoutDescriptor::new(
         "triangle_layout_desc",
         &[
-            storage_buffer::<Triangle>(false).build(0, ShaderStages::VERTEX),
+            storage_buffer_read_only::<Triangle>(false).build(0, ShaderStages::VERTEX),
         ],
     );
 

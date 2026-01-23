@@ -1,7 +1,7 @@
 
 use bevy::{
-    asset::{load_internal_asset, uuid_handle}, prelude::*, render::{
-        Render, RenderApp, RenderStartup, RenderSystems, extract_component::ExtractComponentPlugin, graph::CameraDriverLabel, render_graph::{RenderGraph, ViewNode, ViewNodeRunner}
+    asset::{load_internal_asset, uuid_handle}, core_pipeline::core_3d::graph::{Core3d, Node3d}, prelude::*, render::{
+        Render, RenderApp, RenderStartup, RenderSystems, extract_component::ExtractComponentPlugin, graph::CameraDriverLabel, render_graph::{RenderGraph, RenderGraphExt, ViewNode, ViewNodeRunner}
     }
 };
 
@@ -117,17 +117,31 @@ impl Plugin for SimulationPlugin {
         let world = render_app.world_mut();
         //let node = ViewNodeRunner::<MarchingCubesRenderNode>::from_world(world); 
 
+        world.add_render_graph_node::<ViewNodeRunner<MarchingCubesRenderNode>>(
+            Core3d,
+            MarchingCubesRenderingLabel
+        );
+
+        world.add_render_graph_edges(Core3d, (
+            Node3d::StartMainPass,
+            MarchingCubesRenderingLabel,
+            Node3d::MainOpaquePass,
+        ));
+
+
+
         let mut render_graph = world.resource_mut::<RenderGraph>();
 
         render_graph.add_node(SimulationGraphLabel, SimulationNode::default());
         render_graph.add_node(MarchingCubesLabel, MarchingCubesNode::default());
-        //render_graph.add_node(GenerateRenderArgsLabel, GenerateRenderArgsNode::default());
+        render_graph.add_node(GenerateRenderArgsLabel, GenerateRenderArgsNode::default());
         //render_graph.add_node(MarchingCubesRenderingLabel, ViewNodeRunner::<MarchingCubesRenderNode>::default());
-        render_graph.add_node(MarchingCubesRenderingLabel, node);
+        //render_graph.add_node(MarchingCubesRenderingLabel, node);
         render_graph.add_node_edge(SimulationGraphLabel, MarchingCubesLabel);
         render_graph.add_node_edge(MarchingCubesLabel, GenerateRenderArgsLabel);
         render_graph.add_node_edge(GenerateRenderArgsLabel, CameraDriverLabel);
-        //render_graph.add_node_edge(CameraDriverLabel, MarchingCubesRenderingLabel);
+        
+        //render_graph.add_node_edge(ViewNodeRunnerLabel, MarchingCubesRenderingLabel);
         
 
     }
