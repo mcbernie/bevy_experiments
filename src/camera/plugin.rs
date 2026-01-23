@@ -45,8 +45,8 @@ fn setup_camera(
         Camera3d::default(), 
         Msaa::Off,
         ScreenSpaceAmbientOcclusion::default(),
-        Transform::from_xyz(5.0, 3.0, 5.0)
-                .looking_at(Vec3::ZERO, Vec3::Y),
+        Transform::from_xyz(20.0, 16.0, 26.0)
+                .looking_at(Vec3::new(0.0, 5.0, 0.0), Vec3::Y),
         FlyCam {
             speed: 15.0,
             sensitivity: 0.002,

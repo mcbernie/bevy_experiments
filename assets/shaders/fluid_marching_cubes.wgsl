@@ -6,8 +6,8 @@ struct View {
 var<uniform> view : View;
 
 struct Vertex {
-    position : vec3<f32>,
-    normal   : vec3<f32>,
+    position : vec4<f32>, // need to be vec4 for alignment reasons
+    normal   : vec4<f32>,
 };
 
 @group(1) @binding(0)

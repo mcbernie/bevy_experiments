@@ -5,7 +5,7 @@ use bevy::{
     }
 };
 
-use crate::simulation::{marching_cubes::{MarchingCubesLabel, MarchingCubesNode, init_marching_cubes_lut, init_marching_cubes_pipeline, init_marching_cubes_simulation_system, prepare_marching_cubes_bind_group}, node::{SimulationGraphLabel, SimulationNode}, systems::prepare_density_map};
+use crate::{rendering::{GenerateRenderArgsLabel, GenerateRenderArgsNode, init_drawing_args_buffer, init_drawing_args_pipeline, prepare_drawing_args}, simulation::{marching_cubes::{MarchingCubesLabel, MarchingCubesNode, init_marching_cubes_lut, init_marching_cubes_pipeline, init_marching_cubes_simulation_system, prepare_marching_cubes_bind_group}, node::{SimulationGraphLabel, SimulationNode}, systems::prepare_density_map}};
 
 use super::{
     assets::SimulationParams,
@@ -68,6 +68,7 @@ impl Plugin for SimulationPlugin {
                     init_spatial_hash_compute_pipeline,
                     init_marching_cubes_lut,
                     init_marching_cubes_pipeline,
+                    init_drawing_args_pipeline,
                 ),
             )
             .add_systems(
@@ -84,10 +85,12 @@ impl Plugin for SimulationPlugin {
                 init_count_sort_system
                     .in_set(RenderSystems::PrepareBindGroups)
                     .before(prepare_count_sort_bind_groups).after(init_simulation_system),
-                
                 init_marching_cubes_simulation_system
                     .in_set(RenderSystems::PrepareBindGroups)
                     .before(prepare_marching_cubes_bind_group).after(init_count_sort_system),
+                init_drawing_args_buffer
+                    .in_set(RenderSystems::PrepareBindGroups)
+                    .before(prepare_drawing_args).after(init_marching_cubes_simulation_system),
 
                 // update or create density map texture
                 prepare_density_map.in_set(RenderSystems::PrepareBindGroups)
@@ -101,6 +104,8 @@ impl Plugin for SimulationPlugin {
                     .in_set(RenderSystems::PrepareBindGroups),
                 prepare_marching_cubes_bind_group
                     .in_set(RenderSystems::PrepareBindGroups),
+                prepare_drawing_args
+                    .in_set(RenderSystems::PrepareBindGroups),
 
             ));
         
@@ -108,8 +113,10 @@ impl Plugin for SimulationPlugin {
 
         render_graph.add_node(SimulationGraphLabel, SimulationNode::default());
         render_graph.add_node(MarchingCubesLabel, MarchingCubesNode::default());
+        render_graph.add_node(GenerateRenderArgsLabel, GenerateRenderArgsNode::default());
         render_graph.add_node_edge(SimulationGraphLabel, MarchingCubesLabel);
-        render_graph.add_node_edge(MarchingCubesLabel, CameraDriverLabel);
+        render_graph.add_node_edge(MarchingCubesLabel, GenerateRenderArgsLabel);
+        render_graph.add_node_edge(GenerateRenderArgsLabel, CameraDriverLabel);
         
 
     }

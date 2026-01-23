@@ -5,35 +5,24 @@
 /// 
 /// 
 
-use bevy::{prelude::*, render::{render_graph::{Node, NodeRunError, RenderGraphContext}, render_resource::*, renderer::{RenderContext, RenderQueue}}};
+use bevy::{prelude::*, render::{render_graph::{Node, NodeRunError, RenderGraphContext, RenderLabel}, render_resource::*, renderer::{RenderContext, RenderQueue}}};
 
 mod systems;
+mod nodes;
+mod assets;
 
-#[repr(C)]
-#[derive(Clone, Copy)]
-struct DrawIndirectArgs {
-    vertex_count: u32,
-    instance_count: u32,
-    first_vertex: u32,
-    first_instance: u32,
-}
+pub use systems::{init_drawing_args_buffer, init_drawing_args_pipeline, prepare_drawing_args};
+pub use nodes::{GenerateRenderArgsNode, GenerateRenderArgsLabel};
 
-#[derive(Resource)]
-pub struct MarchingCubesGpu {
-    pub triangle_buffer: Buffer,
-    pub triangle_count: Buffer,
-    pub indirect_args: Buffer,
 
-    pub marching_pipeline: CachedComputePipelineId,
-    pub args_pipeline: CachedComputePipelineId,
+#[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
+pub struct MarchingCubesRenderingLabel;
 
-    pub bind_group: BindGroup,
-}
-
+/* 
 #[derive(Default)]
-pub struct MarchingCubesNode;
+pub struct MarchingCubesRenderingNode;
 
-impl Node for MarchingCubesNode {
+impl Node for MarchingCubesRenderingNode {
     fn run(
         &self,
         _graph: &mut RenderGraphContext,
@@ -43,6 +32,7 @@ impl Node for MarchingCubesNode {
         let queue = world.resource::<RenderQueue>();
         let pipeline_cache = world.resource::<PipelineCache>();
         let gpu = world.resource::<MarchingCubesGpu>();
+        let render_args_pipeline = world.resource::<RenderArgsPipeline>();
 
         let marching = match pipeline_cache.get_compute_pipeline(gpu.marching_pipeline) {
             Some(p) => p,
@@ -94,3 +84,4 @@ impl Node for MarchingCubesNode {
         Ok(())
     }
 }
+    */
