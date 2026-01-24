@@ -50,8 +50,8 @@ var linear_clamp_sampler: sampler;
 var<uniform> density_map_size: vec4<u32>;
 
 // configurable (derzeit konstant)
-const iso_level: f32 = 1.0;
-const scale: vec3<f32> = vec3<f32>(1.0);
+const iso_level: f32 = -0.0;
+const scale: vec3<f32> = vec3<f32>(8.0, 8.0, 8.0);
 
 // ============================================================
 // helpers
@@ -99,7 +99,7 @@ fn create_vertex(coord_a: vec3<i32>, coord_b: vec3<i32>) -> Vertex {
     let normal_b = calculate_normal(coord_b);
     let normal = normalize(normal_a + t * (normal_b - normal_a));
 
-    return Vertex(vec4<f32>(position * scale, 1.0), vec4<f32>(normal, 0.0));
+    return Vertex(vec4<f32>(position * scale, 0.0), vec4<f32>(normal, 0.0));
 }
 
 // ============================================================

@@ -117,8 +117,6 @@ pub fn prepare_drawing_args(
 
 pub fn init_render_pipeline(
     mut commands: Commands,
-    pipeline_cache: Res<PipelineCache>,
-    asset_server: Res<AssetServer>,
 ) {
 
     // using DrawIndirectArgs struct from WGPU
@@ -208,16 +206,17 @@ pub fn prepare_marching_cubes_render_resources(
             }),
             primitive: PrimitiveState {
                 topology: PrimitiveTopology::TriangleList,
-                cull_mode: Some(Face::Back),
+                cull_mode: None,//Some(Face::Back),
                 ..default()
             },
-            depth_stencil: Some(DepthStencilState {
-                format: TextureFormat::Depth32Float,
-                depth_write_enabled: true,
-                depth_compare: CompareFunction::Less,
-                stencil: default(),
-                bias: default(),
-            }),
+            depth_stencil: None,
+            //depth_stencil: Some(DepthStencilState {
+            //    format: TextureFormat::Depth32Float,
+            //    depth_write_enabled: true,
+            //    depth_compare: CompareFunction::Less,
+            //    stencil: default(),
+            //    bias: default(),
+            //}),
             ..Default::default()
         },
     );

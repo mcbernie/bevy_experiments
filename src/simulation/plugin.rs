@@ -115,17 +115,14 @@ impl Plugin for SimulationPlugin {
             ));
         
         let world = render_app.world_mut();
-        //let node = ViewNodeRunner::<MarchingCubesRenderNode>::from_world(world); 
-
         world.add_render_graph_node::<ViewNodeRunner<MarchingCubesRenderNode>>(
             Core3d,
             MarchingCubesRenderingLabel
         );
-
         world.add_render_graph_edges(Core3d, (
-            Node3d::StartMainPass,
-            MarchingCubesRenderingLabel,
             Node3d::MainOpaquePass,
+            MarchingCubesRenderingLabel,
+            Node3d::EndMainPass,
         ));
 
 

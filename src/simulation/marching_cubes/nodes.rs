@@ -1,6 +1,6 @@
 use bevy::{prelude::*, render::{render_graph::RenderLabel, render_resource::*, renderer::RenderContext}};
 use bevy::render::render_graph::{Node, NodeRunError, RenderGraphContext};
-use crate::simulation::{components::DensityMap, marching_cubes::{components::MarchingCubesBindGroup, resources::MarchingCubesPipeline}};
+use crate::simulation::{MarchingCubesBuffers, components::DensityMap, marching_cubes::{components::MarchingCubesBindGroup, resources::MarchingCubesPipeline}};
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
 pub struct MarchingCubesLabel;
@@ -24,18 +24,13 @@ impl Node for MarchingCubesNode {
             return Ok(());
         };
 
-        let mut pass = render_context
-            .command_encoder()
-            .begin_compute_pass(&ComputePassDescriptor::default());
 
-        pass.set_pipeline(pipeline);
-
-        let Some(mut query) = world.try_query::<(&MarchingCubesBindGroup, Option<&DensityMap>)>() 
+        let Some(mut query) = world.try_query::<(&MarchingCubesBindGroup, &MarchingCubesBuffers, Option<&DensityMap>)>() 
         else {
             return Ok(());
         };
 
-        for (bind_group, density_map) in query.iter(world) {
+        for (bind_group, buffers, density_map) in query.iter(world) {
             let Some(density_map) = density_map else {
                 continue;
             };
@@ -46,6 +41,14 @@ impl Node for MarchingCubesNode {
             let gx = (cubes_x + 7) / 8;
             let gy = (cubes_y + 7) / 8;
             let gz = (cubes_z + 7) / 8;
+
+            let pass = render_context
+                .command_encoder();
+            pass.clear_buffer(&buffers.counter_buffer, 0, None);
+
+            let mut pass = pass.begin_compute_pass(&ComputePassDescriptor::default());
+
+            pass.set_pipeline(pipeline);
             pass.set_bind_group(0, &bind_group.bind_group, &[]);
             pass.dispatch_workgroups(gx, gy, gz);
         }

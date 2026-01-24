@@ -21,7 +21,7 @@ use crate::{
         despawn_loading_ui,
         spawn_loading_ui
     }, 
-    base::create_plane_mesh, simulation::{material::ParticleMaterial, simulation_params_ui_systems}
+    base::create_plane_mesh, simulation::{marching_cubes::{Triangle, Vertex}, material::ParticleMaterial, simulation_params_ui_systems}
 };
 
 pub const PARTICLE_COUNT: u32 = 90_000;
@@ -138,7 +138,11 @@ fn setup_scene(
         },
     ));
 
-    let buffer: Vec<u32> = (0..PARTICLE_COUNT as u32).map(|x| 99u32).collect();
+    let buffer: Vec<Triangle> = (0..100 as u32).map(|x| Triangle {
+        vertex_a: Vertex { position: [0.0,0.0,0.0,0.0], normal: [0.0,0.0,0.0,0.0] },
+        vertex_b: Vertex { position: [0.0,0.0,0.0,0.0], normal: [0.0,0.0,0.0,0.0] },
+        vertex_c: Vertex { position: [0.0,0.0,0.0,0.0], normal: [0.0,0.0,0.0,0.0] },
+    }).collect();
     //let buffer: Vec<u32> = (0..PARTICLE_COUNT as u32).map(|x| 0u32).collect();
     let mut buffer = ShaderStorageBuffer::from(buffer);
     // We need to enable the COPY_SRC usage so we can copy the buffer to the cpu
@@ -154,8 +158,9 @@ fn setup_scene(
     );
     commands.spawn(Readback::buffer(buffer)).observe(|event: On<ReadbackComplete>| {
         //let data: Vec<Vec2> = event.to_shader_type();
-        let data: Vec<u32> = event.to_shader_type();
-        //info!("Buffer range {:?}", data);
+        let data: Vec<Triangle> = event.to_shader_type();
+
+        //info!("Buffer range {:?}", &data[..100]);
     });
 
 }

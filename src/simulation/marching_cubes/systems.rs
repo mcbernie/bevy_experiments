@@ -1,3 +1,5 @@
+use std::num::NonZeroU64;
+
 use bevy::prelude::*;
 use bevy::render::render_resource::binding_types::*;
 use bevy::render::render_resource::*;
@@ -5,7 +7,7 @@ use bevy::render::renderer::{RenderDevice, RenderQueue};
 
 use crate::DENSITY_TEXTURE_RES;
 use crate::simulation::assets::SimulationParams;
-use crate::simulation::components::{DensityMap, SimulationUniform};
+use crate::simulation::components::{DensityMap, InternalSimulationBuffers, SimulationUniform};
 use crate::simulation::gpu_sort::InternalCountSortBuffers;
 use super::components::{MarchingCubesBindGroup, MarchingCubesBuffers, Triangle};
 use super::resources::{MarchingCubesLut, MarchingCubesPipeline};
@@ -91,7 +93,7 @@ pub fn init_marching_cubes_pipeline(
             texture_3d(TextureSampleType::Float { filterable: true }).build(3, ShaderStages::COMPUTE),
             sampler(SamplerBindingType::Filtering).build(4, ShaderStages::COMPUTE),
             // params
-            uniform_buffer::<SimulationParams>(false).build(5, ShaderStages::COMPUTE),
+            uniform_buffer_sized(false, NonZeroU64::new(std::mem::size_of::<[u32;4]>() as u64)).build(5, ShaderStages::COMPUTE),
         ],
     );
 
@@ -139,7 +141,7 @@ pub fn prepare_marching_cubes_bind_group(
     pipeline: Res<MarchingCubesPipeline>,
     pipeline_cache: Res<PipelineCache>,
     lut: Res<MarchingCubesLut>,
-    query: Query<(Entity, &MarchingCubesBuffers, &DensityMap, &SimulationUniform)>,
+    query: Query<(Entity, &MarchingCubesBuffers, &DensityMap, &InternalSimulationBuffers)>,
 ) {
 
     let triangle_layout_desc = BindGroupLayoutDescriptor::new(
@@ -176,7 +178,7 @@ pub fn prepare_marching_cubes_bind_group(
                 },
                 BindGroupEntry {
                     binding: 5,
-                    resource: internal_buffers.0.buffer().unwrap().as_entire_binding(),
+                    resource: internal_buffers.density_map_size.as_entire_binding(),
                 }
             ],
         );

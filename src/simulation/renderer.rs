@@ -108,8 +108,8 @@ pub fn spawn_simulation_once(
         Transform::IDENTITY,
         GlobalTransform::IDENTITY,
         InheritedVisibility::VISIBLE,
-        Mesh3d(mesh.clone()),
-        MeshMaterial3d(material.clone()),
+        //Mesh3d(mesh.clone()),
+        //MeshMaterial3d(material.clone()),
     ));
 }
 
