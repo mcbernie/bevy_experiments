@@ -26,7 +26,7 @@ use crate::{
 
 pub const PARTICLE_COUNT: u32 = 90_000;
 pub const WORKGROUP_SIZE: u32 = 256; // currently fixed in compute shader
-pub const FIXED_DT: f32 = 1.0 / 240.0;
+pub const FIXED_DT: f32 = 1.0 / 120.0;
 pub const SUBSTEPS: u32 = 3;
 pub const JITTER_STRENGTH: f32 = 0.035;
 pub const PARTICLE_SPAWN_DENSITY: u32 = 600;

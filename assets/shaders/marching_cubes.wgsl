@@ -69,15 +69,23 @@ struct SimParams {
 
 
 // configurable (derzeit konstant)
-const iso_level: f32 = -1.0;
+const iso_level: f32 = 0.0;
 
 // ============================================================
 // helpers
 // ============================================================
+//fn coord_to_world(coord: vec3<i32>) -> vec3<f32> {
+//    let size_f = vec3<f32>(density_map_size.xyz) - vec3<f32>(1.0);
+//    return vec3<f32>(coord) / size_f - vec3<f32>(0.5);
+//}
 fn coord_to_world(coord: vec3<i32>) -> vec3<f32> {
-    let size_f = vec3<f32>(density_map_size.xyz) - vec3<f32>(1.0);
-    return vec3<f32>(coord) / size_f - vec3<f32>(0.5);
+    let grid_size = vec3<f32>(density_map_size.xyz);
+    let voxel_size = params.bounds_size / grid_size;
+
+    return (vec3<f32>(coord) + 0.5) * voxel_size
+         - params.bounds_size * 0.5;
 }
+
 
 fn sample_density(coord: vec3<i32>) -> f32 {
     let min_c = any(coord <= vec3<i32>(0));
@@ -117,7 +125,7 @@ fn create_vertex(coord_a: vec3<i32>, coord_b: vec3<i32>) -> Vertex {
     let normal_b = calculate_normal(coord_b);
     let normal = normalize(normal_a + t * (normal_b - normal_a));
     
-    let scale = params.bounds_size.xyz;
+    let scale = vec3<f32>(1.0, 1.0, 1.0);//params.bounds_size.xyz;
 
     return Vertex(vec4<f32>(position * scale, 0.0), vec4<f32>(normal, 0.0));
 }
