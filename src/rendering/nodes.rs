@@ -167,17 +167,17 @@ impl ViewNode for MarchingCubesRenderNode {
             let mut pass = render_context.begin_tracked_render_pass(
             RenderPassDescriptor {
                 label: Some("marching_cubes_indirect_pass"),
-                //color_attachments: &[Some(target.get_color_attachment())],
-                color_attachments: &[Some(RenderPassColorAttachment {
-                    view: target.main_texture_view(),
-                    resolve_target: None,
-                    ops: Operations {
-                        //load: LoadOp::Clear(LinearRgba::BLACK.into()),
-                        load: LoadOp::Load,
-                        store: StoreOp::Store,
-                    },
-                    depth_slice: None,
-                })],
+                color_attachments: &[Some(target.get_color_attachment())],
+                //color_attachments: &[Some(RenderPassColorAttachment {
+                //    view: target.main_texture_view(),
+                //    resolve_target: None,
+                //    ops: Operations {
+                //        //load: LoadOp::Clear(LinearRgba::BLACK.into()),
+                //        load: LoadOp::Load,
+                //        store: StoreOp::Store,
+                //    },
+                //    depth_slice: None,
+                //})],
                 depth_stencil_attachment: None,
                 //depth_stencil_attachment: Some(
                 //    depth.get_attachment(StoreOp::Store),

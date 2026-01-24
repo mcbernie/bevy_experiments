@@ -111,25 +111,25 @@ fn fragment(in: VertexOut) -> @location(0) vec4<f32> {
     let N = normalize(in.normal);
     let V = normalize(view.world_from_view[3].xyz - in.world_pos);
 
-    // Licht (for testing)
     let light_dir = normalize(vec3<f32>(-0.4, -1.0, -0.2));
-    let light_color = vec3<f32>(1.0, 1.0, 1.0);
-
     let NdotL = max(dot(N, -light_dir), 0.0);
-    let diffuse = NdotL * light_color;
 
-    // Fresnel 
     let fresnel = pow(1.0 - max(dot(N, V), 0.0), 5.0);
 
-    // Wasserfarbe
     let deep_water = vec3<f32>(0.0, 0.15, 0.35);
     let shallow_water = vec3<f32>(0.1, 0.4, 0.6);
 
-    let color = mix(deep_water, shallow_water, diffuse)
+    var color = mix(deep_water, shallow_water, NdotL)
               + fresnel * vec3<f32>(0.6, 0.8, 1.0);
 
-    // Transparenz
-    let alpha = 0.4 + fresnel * 0.4;
+    // Fake “mehr Tiefe / satter” über Blickwinkel
+    let facing = max(dot(N, V), 0.0);
+    let edge_dark = pow(1.0 - facing, 1.5);
+
+    color *= (1.0 - 0.35 * edge_dark);   // dunkler an Kanten
+    color *= (1.0 + 0.6 * edge_dark);    // satter (Kontrast)
+
+    let alpha = clamp(0.35 + fresnel * 0.45 - 0.15 * edge_dark, 0.05, 0.9);
 
     return vec4<f32>(color, alpha);
 }

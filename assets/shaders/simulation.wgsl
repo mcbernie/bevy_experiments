@@ -254,7 +254,7 @@ fn update_positions(@builtin(global_invocation_id) id : vec3<u32>) {
 
     resolve_collisions(&pos, &vel, params.collision_damping);
 
-    let max = 10.0;
+    let max = 30.0;
 
     // Write results
     positions[id.x] = vec4<f32>(pos, 0.0);
