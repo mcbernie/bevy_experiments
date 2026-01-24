@@ -2,9 +2,9 @@ use std::num::NonZeroU64;
 
 /// setup bindgroups and pipelines for fluid rendering
 /// 
-use bevy::{prelude::*, render::{render_resource::{binding_types::{storage_buffer, storage_buffer_read_only, storage_buffer_read_only_sized, storage_buffer_sized, uniform_buffer_sized}, *}, renderer::*}};
+use bevy::{prelude::*, render::{render_resource::{binding_types::{storage_buffer, storage_buffer_read_only, storage_buffer_read_only_sized, storage_buffer_sized, uniform_buffer, uniform_buffer_sized}, *}, renderer::*}};
 
-use crate::{rendering::assets::{MarchingCubesRenderResources, ModelData, PreparedRenderArgsBindGroup, SimRenderPipeline, ViewData}, simulation::{MarchingCubesBuffers, marching_cubes::Triangle}};
+use crate::{rendering::assets::{MarchingCubesRenderResources, ModelData, PreparedRenderArgsBindGroup, SimRenderPipeline, ViewData}, simulation::{MarchingCubesBuffers, SimulationParams, marching_cubes::Triangle}};
 
 use super::assets::RenderArgsPipeline;
 use super::assets::FluidIndirectArgsBuffer;
@@ -164,8 +164,8 @@ pub fn prepare_marching_cubes_render_resources(
     let model_view_layout_desc = BindGroupLayoutDescriptor::new(
         "model_view_layout_desc",
         &[
-            uniform_buffer_sized(false, NonZeroU64::new(std::mem::size_of::<ViewData>() as u64)).build(0, ShaderStages::VERTEX),
-            uniform_buffer_sized(false, NonZeroU64::new(std::mem::size_of::<ModelData>() as u64)).build(1, ShaderStages::VERTEX),
+            uniform_buffer_sized(false, NonZeroU64::new(std::mem::size_of::<ViewData>() as u64)).build(0, ShaderStages::VERTEX | ShaderStages::FRAGMENT),
+            uniform_buffer_sized(false, NonZeroU64::new(std::mem::size_of::<ModelData>() as u64)).build(1, ShaderStages::VERTEX | ShaderStages::FRAGMENT),
         ],
     );
 
@@ -181,12 +181,22 @@ pub fn prepare_marching_cubes_render_resources(
         ],
     );
 
+    let simulation_settings_layout_desc = BindGroupLayoutDescriptor::new(
+        "simulation_settings_layout_desc",
+        &[
+            uniform_buffer::<SimulationParams>(false).build(0, ShaderStages::VERTEX | ShaderStages::COMPUTE),
+        ],
+    );
+
+
+
     let pipeline_id = pipeline_cache.queue_render_pipeline(
         RenderPipelineDescriptor {
             label: Some("marching_cubes_pipeline".into()),
             layout: vec![
                 model_view_layout_desc.clone(),
                 triangle_layout_desc.clone(),
+                simulation_settings_layout_desc.clone(),
             ],
             vertex: VertexState {
                 shader: shader.clone(),
@@ -235,6 +245,7 @@ pub fn prepare_marching_cubes_render_resources(
         mapped_at_creation: false,
     });
 
+    // move it into a component....
     let model_view_bind_group = render_device.create_bind_group(
         "marching_cubes_view_and_model_bind_group",
         &model_view_layout,

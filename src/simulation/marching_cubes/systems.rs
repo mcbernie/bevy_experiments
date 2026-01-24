@@ -97,9 +97,16 @@ pub fn init_marching_cubes_pipeline(
         ],
     );
 
+    let simulation_settings_layout_desc = BindGroupLayoutDescriptor::new(
+        "simulation_settings_layout_desc",
+        &[
+            uniform_buffer::<SimulationParams>(false).build(0, ShaderStages::VERTEX | ShaderStages::COMPUTE),
+        ],
+    );
+
     let pipeline_id = pipeline_cache.queue_compute_pipeline(ComputePipelineDescriptor {
         label: Some("marching_cubes_pipeline".into()),
-        layout: vec![bind_group_layout.clone()],
+        layout: vec![bind_group_layout.clone(), simulation_settings_layout_desc],
         shader,
         entry_point: Some("process_cube".into()),
         shader_defs: vec![],

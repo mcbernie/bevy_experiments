@@ -1,6 +1,6 @@
 use bevy::{prelude::*, render::{render_graph::RenderLabel, render_resource::*, renderer::RenderContext}};
 use bevy::render::render_graph::{Node, NodeRunError, RenderGraphContext};
-use crate::simulation::{MarchingCubesBuffers, components::DensityMap, marching_cubes::{components::MarchingCubesBindGroup, resources::MarchingCubesPipeline}};
+use crate::simulation::{MarchingCubesBuffers, SimulationUniform, components::DensityMap, marching_cubes::{components::MarchingCubesBindGroup, resources::MarchingCubesPipeline}};
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
 pub struct MarchingCubesLabel;
@@ -25,12 +25,12 @@ impl Node for MarchingCubesNode {
         };
 
 
-        let Some(mut query) = world.try_query::<(&MarchingCubesBindGroup, &MarchingCubesBuffers, Option<&DensityMap>)>() 
+        let Some(mut query) = world.try_query::<(&MarchingCubesBindGroup, &MarchingCubesBuffers, &SimulationUniform, Option<&DensityMap>)>() 
         else {
             return Ok(());
         };
 
-        for (bind_group, buffers, density_map) in query.iter(world) {
+        for (bind_group, buffers, simulation_uniform, density_map) in query.iter(world) {
             let Some(density_map) = density_map else {
                 continue;
             };
@@ -50,6 +50,7 @@ impl Node for MarchingCubesNode {
 
             pass.set_pipeline(pipeline);
             pass.set_bind_group(0, &bind_group.bind_group, &[]);
+            pass.set_bind_group(1, &simulation_uniform.bind_group, &[]);
             pass.dispatch_workgroups(gx, gy, gz);
         }
 

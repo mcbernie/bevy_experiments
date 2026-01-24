@@ -20,6 +20,7 @@ use crate::rendering::assets::PreparedRenderArgsBindGroup;
 use crate::rendering::assets::RenderArgsPipeline;
 use crate::rendering::assets::ViewData;
 use crate::simulation::MarchingCubesBuffers;
+use crate::simulation::SimulationUniform;
 use crate::simulation::marching_cubes::MarchingCubesBindGroup;
 use crate::simulation::marching_cubes::Triangle;
 
@@ -51,11 +52,7 @@ impl Node for GenerateRenderArgsNode {
             None => return Ok(()),
         };
 
-        let mut encoder = render_context
-            .render_device()
-            .create_command_encoder(&CommandEncoderDescriptor {
-                label: Some("generate_render_args_encoder"),
-            });
+        let encoder = render_context.command_encoder();
 
         for (_entity, bg) in bind_groups.iter(world) {
             let mut pass = encoder.begin_compute_pass(&ComputePassDescriptor {
@@ -66,7 +63,6 @@ impl Node for GenerateRenderArgsNode {
             pass.set_bind_group(0, &bg.bind_group, &[]);
             pass.dispatch_workgroups(1, 1, 1);
         }
-
 
         Ok(())
     }
@@ -113,6 +109,7 @@ impl ViewNode for MarchingCubesRenderNode {
 
         let view_data = ViewData {
             clip_from_world: clip_from_world.to_cols_array_2d(),
+            world_from_view: view.world_from_view.to_matrix().to_cols_array_2d(),
         };
 
         render_queue.write_buffer(
@@ -144,27 +141,28 @@ impl ViewNode for MarchingCubesRenderNode {
             &MarchingCubesBindGroup,
             &MarchingCubesBuffers,
             &FluidIndirectArgsBuffer,
+            &SimulationUniform
         )>() else {
             return Ok(());
         };
 
-        let readback_buffer_handle = world.resource::<ReadbackBuffer>();
-        let buffers = world.resource::<RenderAssets<GpuShaderStorageBuffer>>();
-        let Some(readback_buffer_storage) = buffers.get(&readback_buffer_handle.handle) else {
-            return Ok(());
-        };
-        let readback_buffer = &readback_buffer_storage.buffer; 
+        //let readback_buffer_handle = world.resource::<ReadbackBuffer>();
+        //let buffers = world.resource::<RenderAssets<GpuShaderStorageBuffer>>();
+        //let Some(readback_buffer_storage) = buffers.get(&readback_buffer_handle.handle) else {
+        //    return Ok(());
+        //};
+        //let readback_buffer = &readback_buffer_storage.buffer; 
 
-        for (mc_bind_groups, buffers, indirect_args) in query.iter(world) {
+        for (mc_bind_groups, buffers, indirect_args, simulation_uniform) in query.iter(world) {
             
 
-            render_context.command_encoder().copy_buffer_to_buffer(
-                &buffers.triangle_buffer, 
-                0, 
-                &readback_buffer, 
-                0, 
-                100 * std::mem::size_of::<Triangle>() as u64
-            );
+            //render_context.command_encoder().copy_buffer_to_buffer(
+            //    &buffers.triangle_buffer, 
+            //    0, 
+            //    &readback_buffer, 
+            //    0, 
+            //    100 * std::mem::size_of::<Triangle>() as u64
+            //);
 
             let mut pass = render_context.begin_tracked_render_pass(
             RenderPassDescriptor {
@@ -187,24 +185,24 @@ impl ViewNode for MarchingCubesRenderNode {
                 timestamp_writes: None,
                 occlusion_query_set: None,
             },
-        );
+            );
 
-        //let vp = &view.viewport;
-        //let viewport = Viewport {
-        //    physical_position: UVec2::new(vp.x, vp.y),
-        //    physical_size: UVec2::new(vp.z, vp.w),
-        //    depth: -10.0..10.0,
-        //};
-        //pass.set_camera_viewport(&viewport);
+            let vp = &view.viewport;
+            let viewport = Viewport {
+                physical_position: UVec2::new(vp.x, vp.y),
+                physical_size: UVec2::new(vp.z, vp.w),
+                depth: 0.0..1.0,
+            };
+            pass.set_camera_viewport(&viewport);
 
-        pass.set_render_pipeline(pipeline);
+            pass.set_render_pipeline(pipeline);
 
-        // BindGroup 0: View + Model
-        pass.set_bind_group(
-            0,
-            &render_resources.model_view_bind_group,
-            &[],
-        );
+            // BindGroup 0: View + Model
+            pass.set_bind_group(
+                0,
+                &render_resources.model_view_bind_group,
+                &[],
+            );
             // BindGroup 1: Triangles (storage buffer)
             pass.set_bind_group(
                 1,
@@ -212,8 +210,14 @@ impl ViewNode for MarchingCubesRenderNode {
                 &[],
             );
 
-            //pass.draw_indirect(&indirect_args.buffer, 0);
-            pass.draw(0..480, 0..1);
+            pass.set_bind_group(
+                2,
+                &simulation_uniform.bind_group,
+                &[],
+            );
+
+            pass.draw_indirect(&indirect_args.buffer, 0);
+            //pass.draw(0..480, 0..1);
 
         }
 

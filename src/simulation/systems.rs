@@ -33,8 +33,8 @@ pub fn update_simulation_uniform(
     for (_entity, params, mut uniform) in &mut query {
         let mut update_params = params.clone();
         update_params.update_derived_constants();
-        uniform.0.set(update_params);
-        uniform.0.write_buffer(&render_device, &render_queue);
+        uniform.buffer.set(update_params);
+        uniform.buffer.write_buffer(&render_device, &render_queue);
     }
 }
 
@@ -147,6 +147,17 @@ pub fn init_simulation_system(
         return;
     }
 
+    let sim_uniform_layout_desc = BindGroupLayoutDescriptor::new(
+        "sim_uniform_layout_desc",
+        &[
+            uniform_buffer::<SimulationParams>(false).build(0, ShaderStages::COMPUTE | ShaderStages::VERTEX),
+        ],
+    );
+    let sim_uniform_layout = render_device.create_bind_group_layout(
+        Some("sim_uniform_layout".into()), 
+        &sim_uniform_layout_desc.entries
+    );
+
     for (entity, params) in &query {
         let particle_count = params.particle_count;
         let internal_buffers = create_internal_simulation_buffers(&render_device, particle_count);
@@ -154,13 +165,22 @@ pub fn init_simulation_system(
         let mut uniform_buffer = UniformBuffer::from(params.clone());
         uniform_buffer.write_buffer(&render_device, &render_queue);
 
+        let simulation_uniform_bindgroup = render_device.create_bind_group(
+            "simulation_uniform_bindgroup",
+            &sim_uniform_layout,
+            &[BindGroupEntry {
+                    binding: 0,
+                    resource: uniform_buffer.buffer().unwrap().as_entire_binding(),
+                },
+            ],
+        );
 
-        warn!("Created InternalSimulationBuffers and SimulationUniform for entity {:?}", entity);
         commands.entity(entity).insert((
             internal_buffers,
-            SimulationUniform (
-                uniform_buffer,
-            ),
+            SimulationUniform {
+                buffer: uniform_buffer,
+                bind_group: simulation_uniform_bindgroup,
+            },
         ));
     }
 }
@@ -414,7 +434,7 @@ pub fn prepare_simulation_bind_groups(
         let sort_target_predicted_positions = &internal_buffers.sort_target_predicted_positions;
         let sort_target_velocities = &internal_buffers.sort_target_velocity;
 
-        let uniform_buffer = &simulation_uniform.0;
+        let uniform_buffer = &simulation_uniform.buffer;
 
         let entries =vec![
             BindGroupEntry {

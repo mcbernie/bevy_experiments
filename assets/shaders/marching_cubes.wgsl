@@ -49,9 +49,27 @@ var linear_clamp_sampler: sampler;
 @group(0) @binding(5)
 var<uniform> density_map_size: vec4<u32>;
 
+struct SimParams {
+    num_particles : u32,
+    gravity : f32,
+    smoothing_radius : f32,
+    target_density : f32,
+    pressure_multiplier : f32,
+    near_pressure_multiplier : f32,
+    collision_damping : f32,
+    viscosity_strength : f32,
+    bounds_size : vec3<f32>,
+    spiky_pow_two : f32,
+    spiky_pow_three : f32,
+    spiky_pow_two_grad: f32,
+    spiky_pow_three_grad: f32,
+};
+
+@group(1) @binding(0) var<uniform> params : SimParams;
+
+
 // configurable (derzeit konstant)
-const iso_level: f32 = -0.0;
-const scale: vec3<f32> = vec3<f32>(8.0, 8.0, 8.0);
+const iso_level: f32 = -1.0;
 
 // ============================================================
 // helpers
@@ -98,6 +116,8 @@ fn create_vertex(coord_a: vec3<i32>, coord_b: vec3<i32>) -> Vertex {
     let normal_a = calculate_normal(coord_a);
     let normal_b = calculate_normal(coord_b);
     let normal = normalize(normal_a + t * (normal_b - normal_a));
+    
+    let scale = params.bounds_size.xyz;
 
     return Vertex(vec4<f32>(position * scale, 0.0), vec4<f32>(normal, 0.0));
 }

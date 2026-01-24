@@ -13,5 +13,7 @@ pub mod marching_cubes;
 
 pub use plugin::SimulationPlugin;
 pub use assets::simulation_params_ui_systems;
+pub use assets::SimulationParams;
+pub use components::SimulationUniform;
 
 pub use marching_cubes::MarchingCubesBuffers;

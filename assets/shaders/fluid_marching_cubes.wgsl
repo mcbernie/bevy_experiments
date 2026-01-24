@@ -4,6 +4,7 @@
 
 struct ViewData {
     clip_from_world: mat4x4<f32>,
+    world_from_view: mat4x4<f32>,
 };
 
 @group(0) @binding(0)
@@ -30,14 +31,27 @@ struct Triangle {
     b: Vertex,
     c: Vertex,
 };
-//struct Triangle {
-//    a: vec3<f32>,
-//    b: vec3<f32>,
-//    c: vec3<f32>,
-//};
 
 @group(1) @binding(0)
 var<storage, read> triangles: array<Triangle>;
+
+struct SimParams {
+    num_particles : u32,
+    gravity : f32,
+    smoothing_radius : f32,
+    target_density : f32,
+    pressure_multiplier : f32,
+    near_pressure_multiplier : f32,
+    collision_damping : f32,
+    viscosity_strength : f32,
+    bounds_size : vec3<f32>,
+    spiky_pow_two : f32,
+    spiky_pow_three : f32,
+    spiky_pow_two_grad: f32,
+    spiky_pow_three_grad: f32,
+};
+
+@group(2) @binding(0) var<uniform> params : SimParams;
 
 // -----------------------------------------------------------------------------
 // Vertex output
@@ -45,151 +59,45 @@ var<storage, read> triangles: array<Triangle>;
 
 struct VertexOut {
     @builtin(position) clip_position: vec4<f32>,
+    @location(0) world_pos: vec3<f32>,
+    @location(1) normal: vec3<f32>,
 };
-
-/*const TRIANGLES: array<Triangle, 20> = array<Triangle, 20>(
-    Triangle(
-        vec3<f32>(-1.3691275, 0.13422823, -4.0),
-        vec3<f32>(-1.4228187, 0.08053684, -4.0),
-        vec3<f32>(-1.3691275, 0.08053684, -4.0),
-    ),
-    Triangle(
-        vec3<f32>(-1.3154361, 0.13422823, -4.0),
-        vec3<f32>(-1.3691275, 0.08053684, -4.0),
-        vec3<f32>(-1.3154361, 0.08053684, -4.0),
-    ),
-    Triangle(
-        vec3<f32>(-1.261745, 0.13422823, -4.0),
-        vec3<f32>(-1.3154361, 0.08053684, -4.0),
-        vec3<f32>(-1.261745, 0.08053684, -4.0),
-    ),
-    Triangle(
-        vec3<f32>(-1.2080536, 0.13422823, -4.0),
-        vec3<f32>(-1.261745, 0.08053684, -4.0),
-        vec3<f32>(-1.2080536, 0.08053684, -4.0),
-    ),
-    Triangle(
-        vec3<f32>(-1.1543624, 0.13422823, -4.0),
-        vec3<f32>(-1.2080536, 0.08053684, -4.0),
-        vec3<f32>(-1.1543624, 0.08053684, -4.0),
-    ),
-    Triangle(
-        vec3<f32>(-1.100671, 0.13422823, -4.0),
-        vec3<f32>(-1.1543624, 0.08053684, -4.0),
-        vec3<f32>(-1.100671, 0.08053684, -4.0),
-    ),
-    Triangle(
-        vec3<f32>(-1.0469799, 0.13422823, -4.0),
-        vec3<f32>(-1.100671, 0.08053684, -4.0),
-        vec3<f32>(-1.0469799, 0.08053684, -4.0),
-    ),
-    Triangle(
-        vec3<f32>(-0.9932885, 0.13422823, -4.0),
-        vec3<f32>(-1.0469799, 0.08053684, -4.0),
-        vec3<f32>(-0.9932885, 0.08053684, -4.0),
-    ),
-
-    Triangle(
-        vec3<f32>(-1.3691275, 0.18791962, -4.0),
-        vec3<f32>(-1.4228187, 0.13422823, -4.0),
-        vec3<f32>(-1.3691275, 0.13422823, -4.0),
-    ),
-    Triangle(
-        vec3<f32>(-1.3154361, 0.18791962, -4.0),
-        vec3<f32>(-1.3691275, 0.13422823, -4.0),
-        vec3<f32>(-1.3154361, 0.13422823, -4.0),
-    ),
-    Triangle(
-        vec3<f32>(-1.261745, 0.18791962, -4.0),
-        vec3<f32>(-1.3154361, 0.13422823, -4.0),
-        vec3<f32>(-1.261745, 0.13422823, -4.0),
-    ),
-    Triangle(
-        vec3<f32>(-1.2080536, 0.18791962, -4.0),
-        vec3<f32>(-1.261745, 0.13422823, -4.0),
-        vec3<f32>(-1.2080536, 0.13422823, -4.0),
-    ),
-
-    Triangle(
-        vec3<f32>(-0.93959737, -0.026845694, -3.9463086),
-        vec3<f32>(-0.93959737,  0.026845455, -4.0),
-        vec3<f32>(-0.9932885,  -0.026845694, -3.9463086),
-    ),
-    Triangle(
-        vec3<f32>(-0.885906, -0.026845694, -3.9463086),
-        vec3<f32>(-0.885906,  0.026845455, -4.0),
-        vec3<f32>(-0.93959737, -0.026845694, -3.9463086),
-    ),
-    Triangle(
-        vec3<f32>(-0.83221483, -0.026845694, -3.9463086),
-        vec3<f32>(-0.83221483,  0.026845455, -4.0),
-        vec3<f32>(-0.885906, -0.026845694, -3.9463086),
-    ),
-    Triangle(
-        vec3<f32>(-0.77852345, -0.026845694, -3.9463086),
-        vec3<f32>(-0.77852345,  0.026845455, -4.0),
-        vec3<f32>(-0.83221483, -0.026845694, -3.9463086),
-    ),
-
-    Triangle(
-        vec3<f32>(-0.93959737, 0.08053684, -4.0),
-        vec3<f32>(-0.9932885,  0.026845455, -4.0),
-        vec3<f32>(-0.93959737, 0.026845455, -4.0),
-    ),
-    Triangle(
-        vec3<f32>(-0.885906, 0.08053684, -4.0),
-        vec3<f32>(-0.93959737, 0.026845455, -4.0),
-        vec3<f32>(-0.885906, 0.026845455, -4.0),
-    ),
-    Triangle(
-        vec3<f32>(-0.83221483, 0.08053684, -4.0),
-        vec3<f32>(-0.885906, 0.026845455, -4.0),
-        vec3<f32>(-0.83221483, 0.026845455, -4.0),
-    ),
-    Triangle(
-        vec3<f32>(-0.77852345, 0.08053684, -4.0),
-        vec3<f32>(-0.83221483, 0.026845455, -4.0),
-        vec3<f32>(-0.77852345, 0.026845455, -4.0),
-    )
-);*/
 
 // -----------------------------------------------------------------------------
 // Vertex shader
 // -----------------------------------------------------------------------------
 
 @vertex
-fn vertex(@builtin(vertex_index) i: u32) -> VertexOut {
-    let tri = triangles[i / 3u];
-    let v   = i % 3u;
+fn vertex(
+    @builtin(vertex_index) vertex_index: u32,
+) -> VertexOut {
+    let tri_index = vertex_index / 3u;
+    let vert      = vertex_index % 3u;
 
-    var p: vec3<f32>;
-    if (v == 0u) {
-        p = tri.a.position.xyz;
-    } else if (v == 1u) {
-        p = tri.b.position.xyz;
+    let tri = triangles[tri_index];
+
+    var world_pos: vec4<f32>;
+    var normal: vec4<f32>;
+    if (vert == 0u) {
+        world_pos = tri.a.position;
+        normal = tri.a.normal;
+    } else if (vert == 1u) {
+        world_pos = tri.b.position;
+        normal = tri.b.normal;
     } else {
-        p = tri.c.position.xyz;
+        world_pos = tri.c.position;
+        normal = tri.c.normal;
     }
 
     var out: VertexOut;
-
-
-    //let scale = 0.25;
-    //out.clip_position = vec4<f32>(
-    //    p.x * scale,
-    //    p.y * scale,
-    //    p.z * scale,   // JETZT erlaubt
-    //    1.0
-    //);
-
-
-    // Debug: in Clip-Space zwingen
-    //out.clip_position = vec4<f32>(p.xy * 0.3, 0.3 , 1.0);
-    let z = clamp(p.z * 0.2, -0.9, 0.9);
-    out.clip_position = vec4<f32>(p.xy * 0.2, z, 1.0);
-
+    world_pos = vec4<f32>(world_pos.xyz, 1.0);
+    out.clip_position = view.clip_from_world * world_pos;
+    out.world_pos = world_pos.xyz;
+    out.normal = normalize(normal.xyz);
+    //out.clip_position = view.clip_from_world * world_pos;
     return out;
 }
+
 
 
 
@@ -199,7 +107,29 @@ fn vertex(@builtin(vertex_index) i: u32) -> VertexOut {
 // -----------------------------------------------------------------------------
 
 @fragment
-fn fragment() -> @location(0) vec4<f32> {
-    // simple debug color
-    return vec4<f32>(0.9, 0.9, 0.9, 1.0);
+fn fragment(in: VertexOut) -> @location(0) vec4<f32> {
+    let N = normalize(in.normal);
+    let V = normalize(view.world_from_view[3].xyz - in.world_pos);
+
+    // Licht (for testing)
+    let light_dir = normalize(vec3<f32>(-0.4, -1.0, -0.2));
+    let light_color = vec3<f32>(1.0, 1.0, 1.0);
+
+    let NdotL = max(dot(N, -light_dir), 0.0);
+    let diffuse = NdotL * light_color;
+
+    // Fresnel 
+    let fresnel = pow(1.0 - max(dot(N, V), 0.0), 5.0);
+
+    // Wasserfarbe
+    let deep_water = vec3<f32>(0.0, 0.15, 0.35);
+    let shallow_water = vec3<f32>(0.1, 0.4, 0.6);
+
+    let color = mix(deep_water, shallow_water, diffuse)
+              + fresnel * vec3<f32>(0.6, 0.8, 1.0);
+
+    // Transparenz
+    let alpha = 0.4 + fresnel * 0.4;
+
+    return vec4<f32>(color, alpha);
 }

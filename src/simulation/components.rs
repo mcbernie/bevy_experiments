@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use bevy::prelude::*; 
 use bevy::render::extract_component::ExtractComponent;
 use bevy::render::render_resource::{Buffer, Extent3d, Sampler, Texture, TextureView, UniformBuffer};
@@ -46,8 +48,17 @@ pub struct PreparedSimulationBindGroup {
 }
 
 #[derive(Component)]
-pub struct SimulationUniform (
-    pub UniformBuffer<SimulationParams>
-);
+pub struct SimulationUniform {
+    pub buffer: UniformBuffer<SimulationParams>,
+    pub bind_group: BindGroup,
+}
+
+impl Deref for SimulationUniform {
+    type Target = UniformBuffer<SimulationParams>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.buffer
+    }
+}   
 
 

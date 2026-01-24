@@ -26,7 +26,7 @@ use crate::{
 
 pub const PARTICLE_COUNT: u32 = 90_000;
 pub const WORKGROUP_SIZE: u32 = 256; // currently fixed in compute shader
-pub const FIXED_DT: f32 = 1.0 / 120.0;
+pub const FIXED_DT: f32 = 1.0 / 240.0;
 pub const SUBSTEPS: u32 = 3;
 pub const JITTER_STRENGTH: f32 = 0.035;
 pub const PARTICLE_SPAWN_DENSITY: u32 = 600;
@@ -56,7 +56,7 @@ fn main() {
                 }),
                 ..default()
             }),
-            ExtractResourcePlugin::<ReadbackBuffer>::default(),
+            //ExtractResourcePlugin::<ReadbackBuffer>::default(),
             FpsOverlayPlugin {
                 config: FpsOverlayConfig {
                     text_config: TextFont {
@@ -144,24 +144,24 @@ fn setup_scene(
         vertex_c: Vertex { position: [0.0,0.0,0.0,0.0], normal: [0.0,0.0,0.0,0.0] },
     }).collect();
     //let buffer: Vec<u32> = (0..PARTICLE_COUNT as u32).map(|x| 0u32).collect();
-    let mut buffer = ShaderStorageBuffer::from(buffer);
+    //let mut buffer = ShaderStorageBuffer::from(buffer);
     // We need to enable the COPY_SRC usage so we can copy the buffer to the cpu
-    buffer.buffer_description.usage = BufferUsages::COPY_SRC | BufferUsages::STORAGE | BufferUsages::MAP_READ | BufferUsages::COPY_DST;
+    //buffer.buffer_description.usage = BufferUsages::COPY_DST | BufferUsages::MAP_READ;
     
-    let buffer = buffers.add(buffer);
+    //let buffer = buffers.add(buffer);
 
-    commands.insert_resource(ReadbackBuffer
-        {
-            handle: buffer.clone(),
-            mapped: false,
-        }
-    );
-    commands.spawn(Readback::buffer(buffer)).observe(|event: On<ReadbackComplete>| {
-        //let data: Vec<Vec2> = event.to_shader_type();
-        let data: Vec<Triangle> = event.to_shader_type();
+    //commands.insert_resource(ReadbackBuffer
+    //    {
+    //        handle: buffer.clone(),
+    //        mapped: false,
+    //    }
+    //);
+    //commands.spawn(Readback::buffer(buffer)).observe(|event: On<ReadbackComplete>| {
+    //    //let data: Vec<Vec2> = event.to_shader_type();
+    //    let data: Vec<Triangle> = event.to_shader_type();
 
-        //info!("Buffer range {:?}", &data[..100]);
-    });
+    //    //info!("Buffer range {:?}", &data[..100]);
+    //});
 
 }
 

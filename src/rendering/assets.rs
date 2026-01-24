@@ -5,6 +5,7 @@ use bevy::render::render_resource::*;
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct ViewData {
     pub clip_from_world: [[f32; 4]; 4],
+    pub world_from_view: [[f32; 4]; 4],
 }
 
 #[repr(C)]
