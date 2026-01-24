@@ -1,8 +1,8 @@
 use bevy::{
-    color::palettes::css::LIME, prelude::*, render::storage::ShaderStorageBuffer
+    asset::RenderAssetUsages, color::palettes::css::{GREEN, LIME, RED}, mesh::PrimitiveTopology, prelude::*, render::storage::ShaderStorageBuffer
 };
 
-use crate::{JITTER_STRENGTH, PARTICLE_SPAWN_DENSITY, simulation::{self, assets::SimulationParams, spawn::Spawner}};
+use crate::{JITTER_STRENGTH, PARTICLE_SPAWN_DENSITY, simulation::{self, assets::SimulationParams, components::TransformData, material::ParticleMaterial, spawn::Spawner}};
 
 use super::{
     components::SimulationBuffers
@@ -11,10 +11,18 @@ use super::{
 pub fn spawn_simulation_once(
     mut commands: Commands,
     mut storage_buffers: ResMut<Assets<ShaderStorageBuffer>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ParticleMaterial>>,
 ) {
+
+    let position = Transform::from_xyz(0.0, 6.0, 0.0).with_scale(Vec3::new(16.0, 12.0, 8.0));
     let mut simulation_params = SimulationParams::default();
 
-    simulation_params.bounds_size = Vec3::new(40.0, 80.0, 40.0);
+    warn!("Setting simulation bounds size to: {:?}", position.scale);
+    warn!("Setting simulation centre to: {:?}", position.translation);
+
+    simulation_params.bounds_size = position.scale;
+    simulation_params.centre = position.translation;
 
     info!("Spawning particle simulation.");
 
@@ -22,7 +30,7 @@ pub fn spawn_simulation_once(
         PARTICLE_SPAWN_DENSITY,
         Vec3::ZERO,
         JITTER_STRENGTH,
-        simulation::spawn::SpawnRegion::new(Vec3::new(0.0, 15.0,0.0), 5.0),
+        simulation::spawn::SpawnRegion::new(Vec3::new(0.0,6.0,0.0), 4.0),
     );
 
     let spawn_data = spawner.spawn();
@@ -38,6 +46,25 @@ pub fn spawn_simulation_once(
         debug_buffer
     );
 
+    let vertex_count = spawn_data.points.len() as usize * 6;
+    let v_positions = vec![[0.0, 0.0, 0.0]; vertex_count];
+
+    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::RENDER_WORLD);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, v_positions);
+
+    let mesh = meshes.add(mesh);
+
+    let material = materials.add(
+        ParticleMaterial {
+            positions: positions.clone(), // currently using only one buffer for rendering
+            velocities: velocities.clone(),
+            debug_buffer: debug_buffer_handle.clone(),
+            color: Vec4::new(0.2, 0.5, 1.0, 1.0),
+            radius: 0.5,
+        }
+    );
+
+
     // --- Entity ---
     commands.spawn((
         Name::new("Particle Simulation"),
@@ -47,11 +74,15 @@ pub fn spawn_simulation_once(
             debug_buffer: debug_buffer_handle.clone(),
         },
         simulation_params,
-        Transform::IDENTITY,
+        position,
+        TransformData {
+            scale: position.scale,
+            translation: position.translation,
+        },
         GlobalTransform::IDENTITY,
         InheritedVisibility::VISIBLE,
-        //Mesh3d(mesh.clone()),
-        //MeshMaterial3d(material.clone()),
+        Mesh3d(mesh.clone()),
+        MeshMaterial3d(material.clone()),
     ));
 }
 
@@ -61,15 +92,23 @@ pub fn update_simulation_gizmo(
     query: Query<(&SimulationParams, &Transform)>,
 ) {
     for (params, transform) in &query {
-        let size = params.bounds_size;
-
         let center = transform.translation;
+
+        //simulation::spawn::SpawnRegion::new(Vec3::new(0.0,6.0,0.0), 2.0),
+        gizmos.cube(
+            Transform {
+                translation: Vec3::new(0.0, 6.0, 0.0),
+                rotation: transform.rotation,
+                scale: Vec3::ONE * 4.0,
+            },
+            RED,
+        );
 
         gizmos.cube(
             Transform {
                 translation: center,
                 rotation: transform.rotation,
-                scale: size,
+                scale: transform.scale,
             },
             LIME,
         );

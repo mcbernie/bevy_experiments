@@ -5,7 +5,7 @@ use bevy::{
     }
 };
 
-use crate::{rendering::{GenerateRenderArgsLabel, GenerateRenderArgsNode, MarchingCubesRenderNode, MarchingCubesRenderingLabel, init_drawing_args_buffer, init_drawing_args_pipeline, init_render_pipeline, prepare_drawing_args, prepare_marching_cubes_render_resources}, simulation::{marching_cubes::{MarchingCubesLabel, MarchingCubesNode, init_marching_cubes_lut, init_marching_cubes_pipeline, init_marching_cubes_simulation_system, prepare_marching_cubes_bind_group}, node::{SimulationGraphLabel, SimulationNode}, resources::SimStepper, systems::{prepare_density_map, update_sim_stepper}}};
+use crate::{rendering::{GenerateRenderArgsLabel, GenerateRenderArgsNode, MarchingCubesRenderNode, MarchingCubesRenderingLabel, init_drawing_args_buffer, init_drawing_args_pipeline, init_render_pipeline, prepare_drawing_args, prepare_marching_cubes_render_resources}, simulation::{components::TransformData, marching_cubes::{MarchingCubesLabel, MarchingCubesNode, init_marching_cubes_lut, init_marching_cubes_pipeline, init_marching_cubes_simulation_system, prepare_marching_cubes_bind_group}, node::{SimulationGraphLabel, SimulationNode}, resources::SimStepper, systems::{prepare_density_map, update_sim_stepper}}};
 
 use super::{
     assets::SimulationParams,
@@ -48,7 +48,8 @@ impl Plugin for SimulationPlugin {
             ),
         )
         .register_type::<SimulationParams>()
-        .add_plugins(ExtractComponentPlugin::<SimulationBuffers>::default());
+        .add_plugins(ExtractComponentPlugin::<SimulationBuffers>::default())
+        .add_plugins(ExtractComponentPlugin::<TransformData>::default());
 
         // make math.wgsl shader available for other shaders (#import)
         load_internal_asset!(
@@ -117,15 +118,15 @@ impl Plugin for SimulationPlugin {
             ));
         
         let world = render_app.world_mut();
-        world.add_render_graph_node::<ViewNodeRunner<MarchingCubesRenderNode>>(
-            Core3d,
-            MarchingCubesRenderingLabel
-        );
-        world.add_render_graph_edges(Core3d, (
-            Node3d::MainOpaquePass,
-            MarchingCubesRenderingLabel,
-            Node3d::EndMainPass,
-        ));
+        //world.add_render_graph_node::<ViewNodeRunner<MarchingCubesRenderNode>>(
+        //    Core3d,
+        //    MarchingCubesRenderingLabel
+        //);
+        //world.add_render_graph_edges(Core3d, (
+        //    Node3d::MainOpaquePass,
+        //    MarchingCubesRenderingLabel,
+        //    Node3d::EndMainPass,
+        //));
 
 
 

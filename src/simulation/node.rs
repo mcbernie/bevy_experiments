@@ -29,7 +29,7 @@ pub struct SimulationNode {
 impl Node for SimulationNode {
     fn update(&mut self, _world: &mut World) {
 
-        if !self.first_run && self.counter == 100 {
+        if !self.first_run && self.counter == 10 {
             self.first_run = true;
         }
         if !self.first_run {
@@ -150,8 +150,11 @@ impl Node for SimulationNode {
         let dt = stepper.fixed_dt;
 
         // when starting the simulation, we need to stabilize the simulation
-        let delta: f32 = if !self.first_run { 0.0000 } else { dt };
-        let substeps = if !self.first_run { 3 } else { stepper.steps_this_frame };
+        let delta: f32 = if !self.first_run { 0.0 } else { dt };
+        let substeps = if !self.first_run { 1 } else { stepper.steps_this_frame.max(2) };
+
+        let delta: f32 = 1.0 / 240.0;
+        let substeps = 2;
         //let delta: f32 = 0.004;
 
         for _i in 0..substeps {

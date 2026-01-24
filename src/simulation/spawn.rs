@@ -24,7 +24,7 @@ impl Spawner {
 
         let region = &self.spawn_region;
         let particles_per_axis = region.calc_part_count_per_axis(self.particle_spawn_density);
-        let (p, v) = self.spawn_cube(particles_per_axis, region.centre, Vec3::ONE * region.size);
+        let (p, v) = self.spawn_cube(particles_per_axis, region.centre,Vec3::new(region.size, region.size, region.size));
         points.extend(p);
         velocities.extend(v);
 

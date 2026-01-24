@@ -7,7 +7,7 @@ use bevy::{
     }
 };
 
-use crate::{DENSITY_TEXTURE_RES, simulation::{components::DensityMap, helper::{create_density_texture, density_map_extent}, resources::SimStepper}};
+use crate::{DENSITY_TEXTURE_RES, simulation::{components::{DensityMap, TransformData}, helper::{create_density_texture, density_map_extent}, resources::SimStepper}};
 
 use super::{
     assets::SimulationParams,
@@ -366,11 +366,11 @@ pub fn prepare_density_map(
     mut commands: Commands,
     render_device: Res<RenderDevice>,
     render_queue: Res<RenderQueue>,
-    query: Query<(Entity, &SimulationParams, &InternalSimulationBuffers, Option<&DensityMap>)>,
+    query: Query<(Entity, &TransformData, &SimulationParams, &InternalSimulationBuffers, Option<&DensityMap>)>,
 ) {
-    for (entity, params, buffers, existing) in &query {
+    for (entity, transform, params, buffers, existing) in &query {
         let desired_extent =
-            density_map_extent(params.bounds_size, DENSITY_TEXTURE_RES);
+            density_map_extent(transform.scale, DENSITY_TEXTURE_RES);
 
         let needs_resize = match existing {
             Some(d) => d.extent != desired_extent,

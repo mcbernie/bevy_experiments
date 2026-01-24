@@ -21,6 +21,7 @@ pub struct SimulationParams {
     pub near_pressure_multiplier: f32,
     pub viscosity_strength: f32,
     pub bounds_size: Vec3,
+    pub centre: Vec3,
     pub k_spiky_pow2 : f32,
     pub k_spiky_pow3 : f32,
     pub k_spiky_pow2_grad: f32,
@@ -48,7 +49,8 @@ impl Default for SimulationParams {
             pressure_multiplier: 288.0,
             near_pressure_multiplier: 2.25,
             viscosity_strength: 0.001,
-            bounds_size: Vec3::new(10.0, 8.0, 4.0),
+            bounds_size: Vec3::new(10.0, 8.0, 4.0), // default size
+            centre: Vec3::ZERO, // not used currently
             k_spiky_pow2: 15.0 / (PI * f32::powf(smoothing_radius, 5.0)),
             k_spiky_pow3: 15.0 / (PI * f32::powf(smoothing_radius, 6.0)),
             k_spiky_pow2_grad: 15.0 / (PI * f32::powf(smoothing_radius, 5.0)),
@@ -57,10 +59,10 @@ impl Default for SimulationParams {
     }
 }
 
-pub fn simulation_params_ui_systems(mut contexts: EguiContexts, mut simulations: Query<&mut SimulationParams>) {
+pub fn simulation_params_ui_systems(mut contexts: EguiContexts, mut simulations: Query<(&mut Transform, &mut SimulationParams)>) {
     use bevy_inspector_egui::egui;
 
-    for mut params in simulations.iter_mut() {
+    for (mut transform, mut params) in simulations.iter_mut() {
         egui::Window::new("Simulation Parameters").show(contexts.ctx_mut().unwrap(), |ui| {
             ui.add(egui::TextEdit::singleline(&mut params.particle_count.to_string()).desired_width(100.0).hint_text("Particle Count"));
             ui.add(egui::Slider::new(&mut params.gravity, -10.0..=5.0).text("Gravity"));
@@ -72,9 +74,9 @@ pub fn simulation_params_ui_systems(mut contexts: EguiContexts, mut simulations:
 
             ui.allocate_space(egui::Vec2::new(1.0, 10.0));
             ui.label("Bounding: ");
-            ui.add(egui::DragValue::new(&mut params.bounds_size.x).speed(0.1).prefix("X: "));
-            ui.add(egui::DragValue::new(&mut params.bounds_size.y).speed(0.1).prefix("Y: "));
-            ui.add(egui::DragValue::new(&mut params.bounds_size.z).speed(0.1).prefix("Z: "));
+            ui.add(egui::DragValue::new(&mut transform.scale.x).speed(0.1).prefix("X: "));
+            ui.add(egui::DragValue::new(&mut transform.scale.y).speed(0.1).prefix("Y: "));
+            ui.add(egui::DragValue::new(&mut transform.scale.z).speed(0.1).prefix("Z: "));
         });
     }
 }

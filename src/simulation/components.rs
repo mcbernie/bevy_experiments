@@ -47,6 +47,12 @@ pub struct PreparedSimulationBindGroup {
     pub write_back_bind_group: BindGroup,
 }
 
+#[derive(Component,ExtractComponent, Clone)]
+pub struct TransformData {
+    pub scale: Vec3,
+    pub translation: Vec3,
+}
+
 #[derive(Component)]
 pub struct SimulationUniform {
     pub buffer: UniformBuffer<SimulationParams>,

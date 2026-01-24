@@ -325,6 +325,41 @@ fn resolve_collisions(
     *vel = v.xyz;
 }
 
+/*fn resolve_collisions(
+    pos: ptr<function, vec3<f32>>,
+    vel: ptr<function, vec3<f32>>,
+    collision_damping: f32,
+) {
+    // Position / Velocity in lokalen Raum transformieren
+    var pos_local = vec4<f32>(*pos, 1.0).xyz;
+    var vel_local = vec4<f32>(*vel, 0.0).xyz;    
+
+    let half_size = vec3<f32>(0.5, 0.5, 0.5);
+    let edge_dst = half_size - abs(pos_local);
+
+    if (edge_dst.x <= 0)
+    {
+        pos_local.x = half_size.x * sign(pos_local.x);
+        vel_local.x *= -1 * collision_damping;
+    }
+    if (edge_dst.y <= 0)
+    {
+        pos_local.y = half_size.y * sign(pos_local.y);
+        vel_local.y *= -1 * collision_damping;
+    }
+    if (edge_dst.z <= 0)
+    {
+        pos_local.z = half_size.z * sign(pos_local.z);
+        vel_local.z *= -1 * collision_damping;
+    }
+
+    // Transform resolved position/velocity back to world space
+    //pos = mul(localToWorld, float4(pos_local, 1)).xyz;
+    //vel = mul(localToWorld, float4(vel_local, 0)).xyz;
+    *pos = pos_local;
+    *vel = vel_local;
+}*/
+
 @compute @workgroup_size(WORKGROUP_SIZE, 1, 1)
 fn reorder(
     @builtin(global_invocation_id) id: vec3<u32>
