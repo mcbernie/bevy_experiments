@@ -8,7 +8,6 @@ use bevy::render::{
 use bevy_inspector_egui::bevy_egui::EguiContexts;
 use bevy_inspector_egui::prelude::*;
 
-use crate::PARTICLE_COUNT;
 
 #[derive(Reflect, Component, ExtractComponent, ShaderType, Clone, InspectorOptions)]
 #[reflect(Component, InspectorOptions)]
@@ -41,7 +40,7 @@ impl Default for SimulationParams {
     fn default() -> Self {
         let smoothing_radius = 0.2;
         SimulationParams {
-            particle_count: PARTICLE_COUNT,
+            particle_count: 100,
             gravity: -10.0,
             smoothing_radius: smoothing_radius.clone(),
             collision_damping: 0.95,
@@ -63,6 +62,7 @@ pub fn simulation_params_ui_systems(mut contexts: EguiContexts, mut simulations:
 
     for mut params in simulations.iter_mut() {
         egui::Window::new("Simulation Parameters").show(contexts.ctx_mut().unwrap(), |ui| {
+            ui.add(egui::TextEdit::singleline(&mut params.particle_count.to_string()).desired_width(100.0).hint_text("Particle Count"));
             ui.add(egui::Slider::new(&mut params.gravity, -10.0..=5.0).text("Gravity"));
             ui.add(egui::Slider::new(&mut params.smoothing_radius, 0.01..=0.5).text("Smoothing Radius"));
             ui.add(egui::Slider::new(&mut params.collision_damping, 0.0..=10.0).text("Collision Damping"));

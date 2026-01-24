@@ -1,5 +1,5 @@
 use bevy::{
-    math::U8Vec3, prelude::*, render::{
+    prelude::*, render::{
         render_asset::RenderAssets,
         render_resource::{binding_types::*, *},
         renderer::{RenderDevice, RenderQueue},
@@ -7,7 +7,7 @@ use bevy::{
     }
 };
 
-use crate::{DENSITY_TEXTURE_RES, simulation::{components::DensityMap, helper::{create_density_texture, density_map_extent}}};
+use crate::{DENSITY_TEXTURE_RES, simulation::{components::DensityMap, helper::{create_density_texture, density_map_extent}, resources::SimStepper}};
 
 use super::{
     assets::SimulationParams,
@@ -20,6 +20,17 @@ use super::{
     helper::{CreatePipelineArgs, create_pipeline},
     resources::SimulationComputePipeline,
 };
+
+pub fn update_sim_stepper(
+    time: Res<Time>,
+    mut stepper: ResMut<SimStepper>,
+) {
+    let mut frame_dt = time.delta_secs();
+
+    frame_dt = frame_dt.min(0.1);
+    stepper.update(frame_dt);
+
+}
 
 
 /// Update the simulation uniform buffer if parameters have changed

@@ -9,6 +9,7 @@ mod node;
 mod spatial_hash;
 mod gpu_sort;
 mod helper;
+mod spawn;
 pub mod marching_cubes;
 
 pub use plugin::SimulationPlugin;

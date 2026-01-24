@@ -1,5 +1,4 @@
 mod systems;
-mod node;
 mod components;
 mod resources;
 mod helper;
@@ -10,5 +9,4 @@ pub use systems::prepare_count_sort_bind_groups;
 pub use systems::run_count_sort_compute;
 
 pub use resources::CountSortComputePipeline;
-pub use node::{CountSortNode, CountSortLabel};
 pub use components::{InternalCountSortBuffers, PreparedCountSortComputeBindGroup};

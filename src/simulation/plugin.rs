@@ -5,7 +5,7 @@ use bevy::{
     }
 };
 
-use crate::{rendering::{GenerateRenderArgsLabel, GenerateRenderArgsNode, MarchingCubesRenderNode, MarchingCubesRenderingLabel, init_drawing_args_buffer, init_drawing_args_pipeline, init_render_pipeline, prepare_drawing_args, prepare_marching_cubes_render_resources}, simulation::{marching_cubes::{MarchingCubesLabel, MarchingCubesNode, init_marching_cubes_lut, init_marching_cubes_pipeline, init_marching_cubes_simulation_system, prepare_marching_cubes_bind_group}, node::{SimulationGraphLabel, SimulationNode}, systems::prepare_density_map}};
+use crate::{rendering::{GenerateRenderArgsLabel, GenerateRenderArgsNode, MarchingCubesRenderNode, MarchingCubesRenderingLabel, init_drawing_args_buffer, init_drawing_args_pipeline, init_render_pipeline, prepare_drawing_args, prepare_marching_cubes_render_resources}, simulation::{marching_cubes::{MarchingCubesLabel, MarchingCubesNode, init_marching_cubes_lut, init_marching_cubes_pipeline, init_marching_cubes_simulation_system, prepare_marching_cubes_bind_group}, node::{SimulationGraphLabel, SimulationNode}, resources::SimStepper, systems::{prepare_density_map, update_sim_stepper}}};
 
 use super::{
     assets::SimulationParams,
@@ -61,6 +61,7 @@ impl Plugin for SimulationPlugin {
         let render_app = app.sub_app_mut(RenderApp);
 
         render_app
+            .init_resource::<SimStepper>()
             .add_systems(RenderStartup,
                 (
                     init_compute_pipeline, 
@@ -79,6 +80,7 @@ impl Plugin for SimulationPlugin {
                 )
             )
             .add_systems(Render, (
+                update_sim_stepper.in_set(RenderSystems::Prepare),
                 //swap_simulation_buffers.before(RenderSystems::PrepareBindGroups),
                 init_simulation_system
                     .in_set(RenderSystems::PrepareBindGroups)

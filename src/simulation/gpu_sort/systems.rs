@@ -10,7 +10,7 @@ use bevy::{
 };
 
 use crate::{
-    PARTICLE_COUNT, WORKGROUP_SIZE, simulation::{
+    WORKGROUP_SIZE, simulation::{
         assets::SimulationParams,
         components::InternalSimulationBuffers,
         gpu_sort::{
