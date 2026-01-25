@@ -26,6 +26,8 @@ pub struct SimulationParams {
     pub k_spiky_pow3 : f32,
     pub k_spiky_pow2_grad: f32,
     pub k_spiky_pow3_grad: f32,
+    pub local_to_world: Mat4,
+    pub world_to_local: Mat4,
 }
 
 impl SimulationParams {
@@ -47,14 +49,16 @@ impl Default for SimulationParams {
             collision_damping: 0.95,
             target_density: 630.0,
             pressure_multiplier: 288.0,
-            near_pressure_multiplier: 2.25,
-            viscosity_strength: 0.001,
+            near_pressure_multiplier: 1.20,
+            viscosity_strength: 0.02,
             bounds_size: Vec3::new(10.0, 8.0, 4.0), // default size
             centre: Vec3::ZERO, // not used currently
             k_spiky_pow2: 15.0 / (PI * f32::powf(smoothing_radius, 5.0)),
             k_spiky_pow3: 15.0 / (PI * f32::powf(smoothing_radius, 6.0)),
             k_spiky_pow2_grad: 15.0 / (PI * f32::powf(smoothing_radius, 5.0)),
             k_spiky_pow3_grad: 45.0 / (PI * f32::powf(smoothing_radius, 6.0)),
+            local_to_world: Mat4::IDENTITY,
+            world_to_local: Mat4::IDENTITY,
         }
     }
 }
@@ -71,6 +75,7 @@ pub fn simulation_params_ui_systems(mut contexts: EguiContexts, mut simulations:
             ui.add(egui::Slider::new(&mut params.target_density, 0.0..=1000.0).text("Target Density"));
             ui.add(egui::Slider::new(&mut params.pressure_multiplier, 0.0..=500.0).text("Pressure Multiplier"));
             ui.add(egui::Slider::new(&mut params.near_pressure_multiplier, 0.0..=5.0).text("Near Pressure Multiplier"));
+            ui.add(egui::Slider::new(&mut params.viscosity_strength, -10.0..=10.0).text("Viscosity Strength"));
 
             ui.allocate_space(egui::Vec2::new(1.0, 10.0));
             ui.label("Bounding: ");
@@ -78,5 +83,11 @@ pub fn simulation_params_ui_systems(mut contexts: EguiContexts, mut simulations:
             ui.add(egui::DragValue::new(&mut transform.scale.y).speed(0.1).prefix("Y: "));
             ui.add(egui::DragValue::new(&mut transform.scale.z).speed(0.1).prefix("Z: "));
         });
+    }
+}
+
+pub fn update_simulation_params_systems(mut simulations: Query<(&Transform, &mut SimulationParams), Changed<Transform>>) {
+    for (transform, mut params) in simulations.iter_mut() {
+        params.bounds_size = transform.scale;
     }
 }

@@ -1,13 +1,9 @@
-struct Vertex {
-    position: vec4<f32>,
-    normal: vec4<f32>,
+#import simulation::math::{
+    SimParams,
+    Triangle,
+    Vertex,
 };
 
-struct Triangle {
-    vertex_c: Vertex,
-    vertex_b: Vertex,
-    vertex_a: Vertex,
-};
 
 // lookup tables
 const offsets: array<u32, 256> = array<u32, 256>(
@@ -49,22 +45,6 @@ var linear_clamp_sampler: sampler;
 @group(0) @binding(5)
 var<uniform> density_map_size: vec4<u32>;
 
-struct SimParams {
-    num_particles : u32,
-    gravity : f32,
-    smoothing_radius : f32,
-    target_density : f32,
-    pressure_multiplier : f32,
-    near_pressure_multiplier : f32,
-    collision_damping : f32,
-    viscosity_strength : f32,
-    bounds_size : vec3<f32>,
-    spiky_pow_two : f32,
-    spiky_pow_three : f32,
-    spiky_pow_two_grad: f32,
-    spiky_pow_three_grad: f32,
-};
-
 @group(1) @binding(0) var<uniform> params : SimParams;
 
 
@@ -84,6 +64,8 @@ fn coord_to_world(coord: vec3<i32>) -> vec3<f32> {
 
     return (vec3<f32>(coord) + 0.5) * voxel_size
          - params.bounds_size * 0.5;
+
+    //return (vec3<f32>(coord) / vec3<f32>(density_map_size.xyz - vec3<u32>(1))) - vec3<f32>(0.5);
 }
 
 

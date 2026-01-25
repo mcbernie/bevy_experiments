@@ -5,6 +5,7 @@ use bevy::render::{
     render_resource::{ComputePassDescriptor, PipelineCache},
     renderer::RenderContext,
 };
+use bevy::time::Stopwatch;
 
 use super::{
     components::{InternalSimulationBuffers, PreparedSimulationBindGroup},
@@ -29,7 +30,7 @@ pub struct SimulationNode {
 impl Node for SimulationNode {
     fn update(&mut self, _world: &mut World) {
 
-        if !self.first_run && self.counter == 10 {
+        if !self.first_run && self.counter == 100 {
             self.first_run = true;
         }
         if !self.first_run {
@@ -42,6 +43,7 @@ impl Node for SimulationNode {
         render_context: &mut RenderContext,
         world: &World,
     ) -> Result<(), NodeRunError> {
+
         let stepper = world.resource::<SimStepper>();
         let queue = world.resource::<RenderQueue>();
 
@@ -150,11 +152,10 @@ impl Node for SimulationNode {
         let dt = stepper.fixed_dt;
 
         // when starting the simulation, we need to stabilize the simulation
-        let delta: f32 = if !self.first_run { 0.0 } else { dt };
-        let substeps = if !self.first_run { 1 } else { stepper.steps_this_frame.max(2) };
+        let delta: f32 = 1.0 / 120.0; //if !self.first_run { 0.0 } else { dt };
+        let substeps = 3; //if !self.first_run { 1 } else { stepper.steps_this_frame.max(2) };
 
-        let delta: f32 = 1.0 / 240.0;
-        let substeps = 2;
+        let substeps_delta = delta / substeps as f32;
         //let delta: f32 = 0.004;
 
         for _i in 0..substeps {
@@ -170,7 +171,7 @@ impl Node for SimulationNode {
 
                 let particle_count = params.particle_count;
                 let wg_size = (particle_count + 255) / 256;
-                let binary_delta = Some(bytemuck::bytes_of(&delta));
+                let binary_delta = Some(bytemuck::bytes_of(&substeps_delta));
 
                 dispatch_compute(
                     &mut pass, 

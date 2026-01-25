@@ -15,6 +15,10 @@ pub fn spawn_simulation_once(
     mut materials: ResMut<Assets<ParticleMaterial>>,
 ) {
 
+    let global_transform = GlobalTransform::IDENTITY;
+    let local_to_world = global_transform.to_matrix();
+    let world_to_local = local_to_world.inverse();
+
     let position = Transform::from_xyz(0.0, 6.0, 0.0).with_scale(Vec3::new(16.0, 12.0, 8.0));
     let mut simulation_params = SimulationParams::default();
 
@@ -23,6 +27,8 @@ pub fn spawn_simulation_once(
 
     simulation_params.bounds_size = position.scale;
     simulation_params.centre = position.translation;
+    simulation_params.local_to_world = local_to_world;
+    simulation_params.world_to_local = world_to_local;
 
     info!("Spawning particle simulation.");
 
@@ -89,10 +95,16 @@ pub fn spawn_simulation_once(
 
 pub fn update_simulation_gizmo(
     mut gizmos: Gizmos,
-    query: Query<(&SimulationParams, &Transform)>,
+    mut query: Query<(&mut SimulationParams, &Transform, &GlobalTransform)>,
 ) {
-    for (params, transform) in &query {
+    for (mut params, transform, global_transform) in &mut query {
         let center = transform.translation;
+
+        let local_to_world = global_transform.to_matrix();
+        let world_to_local = local_to_world.inverse();
+
+        params.local_to_world = local_to_world;
+        params.world_to_local = world_to_local;
 
         //simulation::spawn::SpawnRegion::new(Vec3::new(0.0,6.0,0.0), 2.0),
         gizmos.cube(

@@ -217,7 +217,7 @@ pub fn prepare_marching_cubes_render_resources(
             primitive: PrimitiveState {
                 topology: PrimitiveTopology::TriangleList,
                 cull_mode: Some(Face::Back),
-                front_face: FrontFace::Cw,
+                front_face: FrontFace::Ccw,
                 ..default()
             },
             depth_stencil: None,

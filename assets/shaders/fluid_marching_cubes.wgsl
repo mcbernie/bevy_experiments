@@ -1,3 +1,8 @@
+#import simulation::math::{
+    SimParams,
+    Triangle,
+};
+
 // -----------------------------------------------------------------------------
 // Uniforms
 // -----------------------------------------------------------------------------
@@ -21,35 +26,8 @@ var<uniform> model: ModelData;
 // Geometry storage buffer
 // -----------------------------------------------------------------------------
 
-struct Vertex {
-    position: vec4<f32>,
-    normal: vec4<f32>,
-};
-
-struct Triangle {
-    a: Vertex,
-    b: Vertex,
-    c: Vertex,
-};
-
 @group(1) @binding(0)
 var<storage, read> triangles: array<Triangle>;
-
-struct SimParams {
-    num_particles : u32,
-    gravity : f32,
-    smoothing_radius : f32,
-    target_density : f32,
-    pressure_multiplier : f32,
-    near_pressure_multiplier : f32,
-    collision_damping : f32,
-    viscosity_strength : f32,
-    bounds_size : vec3<f32>,
-    spiky_pow_two : f32,
-    spiky_pow_three : f32,
-    spiky_pow_two_grad: f32,
-    spiky_pow_three_grad: f32,
-};
 
 @group(2) @binding(0) var<uniform> params : SimParams;
 

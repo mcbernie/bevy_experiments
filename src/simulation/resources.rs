@@ -28,7 +28,7 @@ pub struct SimStepper {
 impl Default for SimStepper {
     fn default() -> Self {
         Self {
-            fixed_dt: 1.0 / 120.0,
+            fixed_dt: 1.0 / 240.0,
             max_dt: 1.0 / 60.0,
             max_substeps: 8,
             accumulator: 0.0,

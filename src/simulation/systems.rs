@@ -366,11 +366,11 @@ pub fn prepare_density_map(
     mut commands: Commands,
     render_device: Res<RenderDevice>,
     render_queue: Res<RenderQueue>,
-    query: Query<(Entity, &TransformData, &SimulationParams, &InternalSimulationBuffers, Option<&DensityMap>)>,
+    query: Query<(Entity, &SimulationParams, &InternalSimulationBuffers, Option<&DensityMap>)>,
 ) {
-    for (entity, transform, params, buffers, existing) in &query {
+    for (entity, params, buffers, existing) in &query {
         let desired_extent =
-            density_map_extent(transform.scale, DENSITY_TEXTURE_RES);
+            density_map_extent(params.bounds_size, DENSITY_TEXTURE_RES);
 
         let needs_resize = match existing {
             Some(d) => d.extent != desired_extent,
@@ -405,6 +405,7 @@ pub fn prepare_density_map(
 
         render_queue.write_buffer(&buffers.density_map_size, 0, bytemuck::cast_slice(&density_map_size));
 
+        warn!("Updating / creating density map texture to size: {:?}", desired_extent);
         commands.entity(entity).insert(DensityMap {
             texture,
             view,

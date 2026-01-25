@@ -2,6 +2,18 @@
 
 const PI: f32 = 3.14159265359;
 
+struct Vertex {
+    position: vec4<f32>,
+    normal: vec4<f32>,
+};
+
+struct Triangle {
+    a: Vertex,
+    b: Vertex,
+    c: Vertex,
+};
+
+
 struct SimParams {
     num_particles : u32,
     gravity : f32,
@@ -12,10 +24,13 @@ struct SimParams {
     collision_damping : f32,
     viscosity_strength : f32,
     bounds_size : vec3<f32>,
+    centre : vec3<f32>,
     spiky_pow_two : f32,
     spiky_pow_three : f32,
     spiky_pow_two_grad: f32,
     spiky_pow_three_grad: f32,
+    local_to_world : mat4x4<f32>,
+    world_to_local : mat4x4<f32>,
 };
 
 @group(0) @binding(7) var<uniform> params : SimParams;

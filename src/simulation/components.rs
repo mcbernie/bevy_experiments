@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use bevy::prelude::*; 
 use bevy::render::extract_component::ExtractComponent;
-use bevy::render::render_resource::{Buffer, Extent3d, Sampler, Texture, TextureView, UniformBuffer};
+use bevy::render::render_resource::{Buffer, Extent3d, Sampler, ShaderType, Texture, TextureView, UniformBuffer};
 use bevy::render::{
     render_resource::BindGroup, 
     storage::ShaderStorageBuffer, 

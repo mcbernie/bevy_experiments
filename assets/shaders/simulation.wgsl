@@ -42,7 +42,7 @@ fn external_forces(@builtin(global_invocation_id) id : vec3<u32>) {
     if (id.x >= params.num_particles) { return; }
 
     velocities[id.x] += vec4<f32>(0.0, params.gravity * delta_time, 0.0, 0.0);
-    predicted_positions[id.x] = vec4<f32>(positions[id.x].xyz + velocities[id.x].xyz * 1.0 / 120.0, 0.0);
+    predicted_positions[id.x] = vec4<f32>(positions[id.x].xyz + velocities[id.x].xyz * delta_time, 0.0);
 }
 
 @compute @workgroup_size(WORKGROUP_SIZE, 1, 1)
@@ -288,41 +288,32 @@ fn resolve_collisions(
     collision_damping: f32,
 ) {
     // Position / Velocity in lokalen Raum transformieren
-    let half_size = params.bounds_size * 0.5;
-    let min_bound = vec3<f32>(-half_size.x, 0.2, -half_size.z);
-    let max_bound = vec3<f32>( half_size.x, params.bounds_size.y, half_size.z);
+    var pos_local = (params.world_to_local * vec4<f32>(*pos, 1.0)).xyz;
+    var vel_local = (params.world_to_local * vec4<f32>(*vel, 0.0)).xyz;
 
-    var p = *pos;
-    var v = *vel;
+    let half_size = vec3<f32>(0.5);
+    let edge_dst = half_size - abs(pos_local);
 
-    if (p.x < min_bound.x) {
-        p.x = min_bound.x;
-        v.x *= -1 * collision_damping;
-    } else if (p.x > max_bound.x) {
-        p.x = max_bound.x;
-        v.x *= -1 * collision_damping;
+    if (edge_dst.x <= 0.0)
+    {
+        pos_local.x = half_size.x * sign(pos_local.x);
+        vel_local.x *= -1.0 * collision_damping;
     }
 
-    // Y (Boden + Decke)
-    if (p.y < min_bound.y) {
-        p.y = min_bound.y;
-        v.y *= -1 * collision_damping;
-    } else if (p.y > max_bound.y) {
-        p.y = max_bound.y;
-        v.y *= -1 * collision_damping;
+    if (edge_dst.y <= 0.0)
+    {
+        pos_local.y = half_size.y * sign(pos_local.y);
+        vel_local.y *= -1.0 * collision_damping;
     }
 
-    // Z
-    if (p.z < min_bound.z) {
-        p.z = min_bound.z;
-        v.z *= -1 * collision_damping;
-    } else if (p.z > max_bound.z) {
-        p.z = max_bound.z;
-        v.z *= -1 * collision_damping;
+    if (edge_dst.z <= 0.0)
+    {
+        pos_local.z = half_size.z * sign(pos_local.z);
+        vel_local.z *= -1.0 * collision_damping;
     }
 
-    *pos = p.xyz;
-    *vel = v.xyz;
+    *pos = (params.local_to_world * vec4<f32>(pos_local, 1.0)).xyz;
+    *vel = (params.local_to_world * vec4<f32>(vel_local, 0.0)).xyz;
 }
 
 /*fn resolve_collisions(
